@@ -5,17 +5,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Properties;
 
 /**
- * Player-adjustable options, stored next to the game as plain text so they can
- * be edited by hand. Backs the settings.bin entry on the boot menu, which was
- * previously a dead option that only printed to the console.
+ * Player-adjustable options, stored as plain text. Backs the settings.bin
+ * entry on the boot menu.
  */
 public final class Settings {
 
-    private static final Path FILE = Paths.get("settings.txt");
+    private static final Path FILE = UserData.file("settings.txt");
 
     public static float sfxVolume = 0.7f;
     public static float musicVolume = 0.5f;
@@ -58,6 +56,12 @@ public final class Settings {
         props.setProperty("textScale", String.valueOf(textScale));
         props.setProperty("typingSounds", String.valueOf(typingSounds));
 
+        try {
+            UserData.createParent(FILE);
+        } catch (IOException e) {
+            Log.warn("Could not create settings directory: " + e.getMessage());
+            return;
+        }
         try (OutputStream out = Files.newOutputStream(FILE)) {
             props.store(out, "D.R.E.A.M settings");
         } catch (IOException e) {

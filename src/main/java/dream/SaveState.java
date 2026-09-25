@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Properties;
 
 /**
@@ -14,7 +13,7 @@ import java.util.Properties;
  */
 public final class SaveState {
 
-    private static final Path FILE = Paths.get("saveState.txt");
+    private static final Path FILE = UserData.file("saveState.txt");
 
     public static String username = null;
     public static String cpuName = null;
@@ -48,6 +47,12 @@ public final class SaveState {
         props.setProperty("cpuName", nullToEmpty(cpuName));
         props.setProperty("favoriteColor", nullToEmpty(favoriteColor));
 
+        try {
+            UserData.createParent(FILE);
+        } catch (IOException e) {
+            Log.warn("Could not create save state directory: " + e.getMessage());
+            return;
+        }
         try (OutputStream out = Files.newOutputStream(FILE)) {
             props.store(out, "D.R.E.A.M save state");
         } catch (IOException e) {
