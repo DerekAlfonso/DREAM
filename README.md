@@ -20,6 +20,12 @@ java -jar target/dream.jar
 
 Requires a JDK 11 or newer. Add `--debug` for verbose logging.
 
+For Windows, download the build artifact from the **Windows build** GitHub
+Actions run. It contains an installer (`.exe`) and a portable (`.zip`) build.
+Run the installer for Start menu and desktop shortcuts, or unzip the portable
+build and run `DREAM.exe`. Both include a private Java runtime, so no system
+Java installation is needed. The installer does not modify the system JVM.
+
 The build produces a single self-contained `target/dream.jar` (~2 MB). Every
 asset (audio, font, splash text) and the MP3 decoder are embedded inside it, so
 it runs offline and can be copied anywhere on its own.
@@ -38,7 +44,8 @@ At the boot menu, type `ProjectDream.iso`, `settings.bin` or `credits.txt`.
 ## Settings
 
 `settings.bin` on the boot menu edits these live, and they persist to
-`settings.txt` next to the jar:
+`settings.txt` in the working directory when using the jar or source launcher.
+The packaged Windows app stores it in `%APPDATA%\DREAM`:
 
 | Setting | Range | Meaning |
 | --- | --- | --- |
@@ -57,12 +64,14 @@ top of that rather than the whole story. The terminal keeps dialogue in a
 centred column about 85 characters wide so lines stay readable on an ultrawide
 display.
 
-Your name and the name you give the AI are saved to `saveState.txt`.
+Your name and the name you give the AI are saved to `saveState.txt` in the
+same location as the settings file.
 
 ## Project layout
 
 ```
 pom.xml                          Maven build, produces target/dream.jar
+.github/workflows/windows-build.yml  Windows portable app and installer build
 run.bat / run.sh                 Launchers
 src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
@@ -72,6 +81,7 @@ src/main/java/dream/
   AudioManager.java              MP3 decoding and playback
   Assets.java                    Loads embedded files
   Settings.java / SaveState.java Persistence
+  UserData.java                  Installed-app save location
   InputController.java           Keyboard and mouse wheel
   Layer.java / TextData.java / CurveData.java
 src/main/resources/assets/
