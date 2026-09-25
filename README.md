@@ -20,11 +20,17 @@ java -jar target/dream.jar
 
 Requires a JDK 11 or newer. Add `--debug` for verbose logging.
 
-For Windows, download the build artifact from the **Windows build** GitHub
-Actions run. It contains an installer (`.exe`) and a portable (`.zip`) build.
-Run the installer for Start menu and desktop shortcuts, or unzip the portable
-build and run `DREAM.exe`. Both include a private Java runtime, so no system
-Java installation is needed. The installer does not modify the system JVM.
+Download builds from a successful **Desktop builds** GitHub Actions run. The
+Windows installer (`.exe`) and portable build (`.zip`) are separate direct
+downloads. Run the installer for Start menu and desktop shortcuts, or unzip the
+portable build and run `DREAM.exe`. Both include a private Java runtime, so no
+system Java installation is needed. The installer does not modify the system JVM.
+
+The same run also provides macOS disk images (`.dmg`) for Apple Silicon
+(`arm64`) and Intel (`x64`). Download the one for your Mac, open it, and drag
+`DREAM.app` to Applications. These builds include Java but are unsigned, so
+macOS may ask you to approve opening the app in System Settings > Privacy &
+Security.
 
 The build produces a single self-contained `target/dream.jar` (~2 MB). Every
 asset (audio, font, splash text) and the MP3 decoder are embedded inside it, so
@@ -71,7 +77,7 @@ same location as the settings file.
 
 ```
 pom.xml                          Maven build, produces target/dream.jar
-.github/workflows/windows-build.yml  Windows portable app and installer build
+.github/workflows/windows-build.yml  Windows and macOS packaging
 run.bat / run.sh                 Launchers
 src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
