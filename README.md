@@ -20,6 +20,18 @@ java -jar target/dream.jar
 
 Requires a JDK 11 or newer. Add `--debug` for verbose logging.
 
+Download builds from a successful **Desktop builds** GitHub Actions run. The
+Windows installer (`.exe`) and portable build (`.zip`) are separate direct
+downloads. Run the installer for Start menu and desktop shortcuts, or unzip the
+portable build and run `DREAM.exe`. Both include a private Java runtime, so no
+system Java installation is needed. The installer does not modify the system JVM.
+
+The same run also provides macOS disk images (`.dmg`) for Apple Silicon
+(`arm64`) and Intel (`x64`). Download the one for your Mac, open it, and drag
+`DREAM.app` to Applications. These builds include Java but are unsigned, so
+macOS may ask you to approve opening the app in System Settings > Privacy &
+Security.
+
 The build produces a single self-contained `target/dream.jar` (~2 MB). Every
 asset (audio, font, splash text) and the MP3 decoder are embedded inside it, so
 it runs offline and can be copied anywhere on its own.
@@ -38,7 +50,8 @@ At the boot menu, type `ProjectDream.iso`, `settings.bin` or `credits.txt`.
 ## Settings
 
 `settings.bin` on the boot menu edits these live, and they persist to
-`settings.txt` next to the jar:
+`settings.txt` in the working directory when using the jar or source launcher.
+The packaged Windows app stores it in `%APPDATA%\DREAM`:
 
 | Setting | Range | Meaning |
 | --- | --- | --- |
@@ -57,12 +70,14 @@ top of that rather than the whole story. The terminal keeps dialogue in a
 centred column about 85 characters wide so lines stay readable on an ultrawide
 display.
 
-Your name and the name you give the AI are saved to `saveState.txt`.
+Your name and the name you give the AI are saved to `saveState.txt` in the
+same location as the settings file.
 
 ## Project layout
 
 ```
 pom.xml                          Maven build, produces target/dream.jar
+.github/workflows/windows-build.yml  Windows and macOS packaging
 run.bat / run.sh                 Launchers
 src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
@@ -72,13 +87,19 @@ src/main/java/dream/
   AudioManager.java              MP3 decoding and playback
   Assets.java                    Loads embedded files
   Settings.java / SaveState.java Persistence
+  UserData.java                  Installed-app save location
   InputController.java           Keyboard and mouse wheel
   Layer.java / TextData.java / CurveData.java
 src/main/resources/assets/
   audio/*.mp3                    10 embedded sound files
+  icons/                         CRT app icon: PNG, Windows ICO, macOS ICNS
   pixelFont.ttf                  Perfect DOS VGA 437
   splash.txt                     Random boot splash lines
 ```
+
+The application window and native packages use the same CRT icon. Its design
+uses the game's DOS font, curved scanlines and green command prompt. See
+[the icon assets and regeneration instructions](src/main/resources/assets/icons/README.md).
 
 ## How the audio works
 
