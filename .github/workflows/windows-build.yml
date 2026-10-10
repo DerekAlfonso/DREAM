@@ -1,0 +1,118 @@
+name: Desktop builds
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and verify JAR
+        run: mvn -B --no-transfer-progress clean verify
+
+      - name: Stage application
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content pom.xml -Raw)).project.version
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force dist/input, dist/output | Out-Null
+          Copy-Item target/dream.jar dist/input/dream.jar
+
+      - name: Build portable Windows app with bundled Java
+        shell: pwsh
+        run: |
+          jpackage --type app-image --name DREAM --app-version $env:APP_VERSION `
+            --input dist/input --main-jar dream.jar --main-class dream.Main `
+            --icon src/main/resources/assets/icons/dream.ico `
+            --java-options '-Ddream.packaged=true' --dest dist/output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/output/DREAM/runtime/bin/server/jvm.dll)) { throw 'Bundled Java runtime is missing' }
+          if (!(Test-Path dist/output/DREAM/DREAM.exe)) { throw 'Windows launcher is missing' }
+          Compress-Archive -Path dist/output/DREAM -DestinationPath "dist/output/DREAM-$env:APP_VERSION-windows-x64-portable.zip"
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $wixBin = Join-Path ${env:ProgramFiles(x86)} 'WiX Toolset v3.14\bin'
+          if (Test-Path $wixBin) { $env:PATH = "$wixBin;$env:PATH" }
+          jpackage --type exe --name DREAM --app-version $env:APP_VERSION `
+            --app-image dist/output/DREAM --dest dist/output `
+            --icon src/main/resources/assets/icons/dream.ico `
+            --win-per-user-install --win-menu --win-shortcut
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Get-ChildItem dist/output -Filter '*.exe')) { throw 'Installer was not created' }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/output/*.exe
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/output/*.zip
+          archive: false
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and verify JAR
+        run: mvn -B --no-transfer-progress clean verify
+
+      - name: Stage application
+        shell: bash
+        run: |
+          version=$(python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("pom.xml").getroot(); print(root.find("{http://maven.apache.org/POM/4.0.0}version").text)')
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          mkdir -p dist/input dist/output
+          cp target/dream.jar dist/input/dream.jar
+
+      - name: Build macOS disk image with bundled Java
+        shell: bash
+        run: |
+          jpackage --type dmg --name DREAM --app-version "$APP_VERSION" \
+            --input dist/input --main-jar dream.jar --main-class dream.Main \
+            --icon src/main/resources/assets/icons/dream.icns \
+            --java-options '-Ddream.packaged=true' --dest dist/output
+          dmg=(dist/output/*.dmg)
+          test "${#dmg[@]}" -eq 1
+          mv "${dmg[0]}" "dist/output/DREAM-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
+
+      - name: Upload macOS disk image
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/output/*.dmg
+          archive: false
+          if-no-files-found: error
