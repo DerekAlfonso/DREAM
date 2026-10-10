@@ -1,6 +1,8 @@
 package dream;
 
+import javax.imageio.ImageIO;
 import java.awt.Font;
+import java.awt.Image;
 import java.awt.GraphicsEnvironment;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -23,6 +25,22 @@ import java.util.Scanner;
 public final class Assets {
 
     private Assets() { }
+
+    /** Multiple resolutions let the window manager choose a crisp taskbar icon. */
+    public static List<Image> loadWindowIcons() {
+        List<Image> icons = new ArrayList<>();
+        for (int size : new int[] {16, 32, 48, 64, 128, 256, 512}) {
+            try (InputStream in = open("icons/dream-" + size + ".png")) {
+                if (in != null) {
+                    Image image = ImageIO.read(in);
+                    if (image != null) icons.add(image);
+                }
+            } catch (IOException e) {
+                Log.warn("Could not load window icon: " + e.getMessage());
+            }
+        }
+        return icons;
+    }
 
     /**
      * Opens an asset by its path under /assets, e.g. "audio/StartupWhirr.mp3".

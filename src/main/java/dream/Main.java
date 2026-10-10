@@ -85,6 +85,7 @@ public final class Main {
             (int) (screen.width * 0.8), (int) (screen.height * 0.8)));
 
         frame = new JFrame("D.R.E.A.M");
+        frame.setIconImages(Assets.loadWindowIcons());
         frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         frame.add(canvas);
         frame.pack();
