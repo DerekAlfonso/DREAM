@@ -92,9 +92,14 @@ src/main/java/dream/
   Layer.java / TextData.java / CurveData.java
 src/main/resources/assets/
   audio/*.mp3                    10 embedded sound files
+  icons/                         CRT app icon: PNG, Windows ICO, macOS ICNS
   pixelFont.ttf                  Perfect DOS VGA 437
   splash.txt                     Random boot splash lines
 ```
+
+The application window and native packages use the same CRT icon. Its design
+uses the game's DOS font, curved scanlines and green command prompt. See
+[the icon assets and regeneration instructions](src/main/resources/assets/icons/README.md).
 
 ## How the audio works
 

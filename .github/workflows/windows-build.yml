@@ -36,6 +36,7 @@ jobs:
         run: |
           jpackage --type app-image --name DREAM --app-version $env:APP_VERSION `
             --input dist/input --main-jar dream.jar --main-class dream.Main `
+            --icon src/main/resources/assets/icons/dream.ico `
             --java-options '-Ddream.packaged=true' --dest dist/output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path dist/output/DREAM/runtime/bin/server/jvm.dll)) { throw 'Bundled Java runtime is missing' }
@@ -49,6 +50,7 @@ jobs:
           if (Test-Path $wixBin) { $env:PATH = "$wixBin;$env:PATH" }
           jpackage --type exe --name DREAM --app-version $env:APP_VERSION `
             --app-image dist/output/DREAM --dest dist/output `
+            --icon src/main/resources/assets/icons/dream.ico `
             --win-per-user-install --win-menu --win-shortcut
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Get-ChildItem dist/output -Filter '*.exe')) { throw 'Installer was not created' }
@@ -102,6 +104,7 @@ jobs:
         run: |
           jpackage --type dmg --name DREAM --app-version "$APP_VERSION" \
             --input dist/input --main-jar dream.jar --main-class dream.Main \
+            --icon src/main/resources/assets/icons/dream.icns \
             --java-options '-Ddream.packaged=true' --dest dist/output
           dmg=(dist/output/*.dmg)
           test "${#dmg[@]}" -eq 1
