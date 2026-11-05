@@ -5,6 +5,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -13,14 +14,26 @@ import java.lang.reflect.InvocationTargetException;
 /**
  * D.R.E.A.M - Digital Recreation of Emotional Aptitude Model.
  *
- * <p>Entry point. Builds the window on the Swing event thread, then hands the
+ * Entry point. Builds the window on the Swing event thread, then hands the
  * story to a worker thread so its pauses never freeze rendering or input. The
  * original did all of this on one thread, which is why the window stopped
  * responding while audio played.
+ * 
+ * This is the third version of this game, the first version was a throw-away project
+ * I made for my CS class at the time that I ended up really enjoying, so I remade it with
+ * the graphics library made by the learning platform I was on (CodeHS), and now I've remade 
+ * it without those dependencies
  *
- * <p>Run with {@code --debug} for verbose logging.
+ * Run with {@code --debug} for verbose logging.
  */
 public final class Main {
+
+    /**
+     * Smallest content area the terminal is laid out for. Below this the text
+     * column wraps constantly and only a handful of lines fit on screen.
+     */
+    private static final int MIN_CONTENT_WIDTH = 800;
+    private static final int MIN_CONTENT_HEIGHT = 600;
 
     private static JFrame frame;
     private static Game game;
@@ -89,6 +102,14 @@ public final class Main {
         frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         frame.add(canvas);
         frame.pack();
+
+        // The frame minimum includes the title bar and borders, so add them
+        // once the window exists. Clamp to the screen for small displays.
+        Insets insets = frame.getInsets();
+        frame.setMinimumSize(new Dimension(
+            Math.min(screen.width, MIN_CONTENT_WIDTH + insets.left + insets.right),
+            Math.min(screen.height, MIN_CONTENT_HEIGHT + insets.top + insets.bottom)));
+
         frame.setLocationRelativeTo(null);
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
