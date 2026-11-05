@@ -15,6 +15,9 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
 
     private static final int SCROLL_SPEED = 25;
 
+    /** True while Enter is held, so auto-repeat cannot skip or submit twice. */
+    private boolean enterHeld = false;
+
     @Override
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
@@ -22,10 +25,20 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
                 Terminal.handleBackspace();
                 break;
             case KeyEvent.VK_ENTER:
-                Terminal.handleEnter();
+                if (!enterHeld) {
+                    enterHeld = true;
+                    Terminal.handleEnter();
+                }
                 break;
             default:
                 break;
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+            enterHeld = false;
         }
     }
 

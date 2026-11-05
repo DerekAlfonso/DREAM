@@ -65,6 +65,15 @@ public final class Terminal {
     private static final List<TextData> activeLines = new ArrayList<>();
     private static final Queue<MessageRequest> messageQueue = new LinkedList<>();
     private static boolean isTyping = false;
+
+    /** The line being typed, the request it came from, and its timer. */
+    private static Timer typingTimer = null;
+    private static TextData typingLine = null;
+    private static MessageRequest typingRequest = null;
+
+    /** Shared by every wrapped line produced by one print() call. */
+    private static int nextPrintId = 0;
+
     private static int scrollOffset = 0;
     private static long lastClickAt = 0L;
 
@@ -89,15 +98,17 @@ public final class Terminal {
         final Color color;
         final int pushUpAmount;
         final Font font;
+        final int printId;
 
         MessageRequest(String text, int speed, int fontSize, Color color,
-                       int pushUpAmount, Font font) {
+                       int pushUpAmount, Font font, int printId) {
             this.text = text;
             this.speed = speed;
             this.fontSize = fontSize;
             this.color = color;
             this.pushUpAmount = pushUpAmount;
             this.font = font;
+            this.printId = printId;
         }
     }
 
@@ -305,6 +316,7 @@ public final class Terminal {
         FontMetrics metrics = canvas.getFontMetrics(font);
         int maxWidth = contentWidth();
 
+        int printId = ++nextPrintId;
         int scaledSpeed = Math.max(1, (int) Math.round(speed / speedMultiplier));
         int lineGap = scaled(BASE_LINE_HEIGHT);
         int wrapGap = scaled(BASE_WRAP_HEIGHT);
@@ -321,7 +333,7 @@ public final class Terminal {
             if (metrics.stringWidth(testLine) > maxWidth && currentLine.length() > 0) {
                 int gap = isFirstLine ? lineGap : wrapGap;
                 messageQueue.add(new MessageRequest(currentLine.toString(),
-                    scaledSpeed, fontSize, color, gap, font));
+                    scaledSpeed, fontSize, color, gap, font, printId));
                 currentLine = new StringBuilder(word);
                 isFirstLine = false;
             } else {
@@ -332,7 +344,7 @@ public final class Terminal {
         if (currentLine.length() > 0) {
             int gap = isFirstLine ? lineGap : wrapGap;
             messageQueue.add(new MessageRequest(currentLine.toString(),
-                scaledSpeed, fontSize, color, gap, font));
+                scaledSpeed, fontSize, color, gap, font, printId));
         }
 
         processNextMessage();
@@ -346,19 +358,14 @@ public final class Terminal {
 
         isTyping = true;
         MessageRequest req = messageQueue.poll();
+        typingRequest = req;
 
-        for (TextData line : activeLines) {
-            line.setY(line.y - req.pushUpAmount);
-        }
-
-        TextData newLine = new TextData("", startX(), homeY(), req.fontSize,
-            req.color, req.font);
-        activeLines.add(newLine);
-        canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, newLine);
-        trimHistory();
+        TextData newLine = addMessageLine(req);
+        typingLine = newLine;
 
         final int[] charIndex = {0};
         Timer timer = new Timer(req.speed, null);
+        typingTimer = timer;
         timer.addActionListener(e -> {
             if (charIndex[0] < req.text.length()) {
                 char c = req.text.charAt(charIndex[0]);
@@ -370,15 +377,75 @@ public final class Terminal {
                 canvas.repaint();
             } else {
                 timer.stop();
-                isTyping = false;
-                if (messageQueue.isEmpty()) {
-                    releaseIdleWaiters();
-                }
-                processNextMessage();
+                finishMessage();
             }
         });
         timer.setInitialDelay(req.speed);
         timer.start();
+    }
+
+    /**
+     * Makes room for one message line and adds it empty. Shared by normal
+     * typing and by the instant reveal, so both push the log up identically.
+     */
+    private static TextData addMessageLine(MessageRequest req) {
+        for (TextData line : activeLines) {
+            line.setY(line.y - req.pushUpAmount);
+        }
+
+        TextData newLine = new TextData("", startX(), homeY(), req.fontSize,
+            req.color, req.font);
+        activeLines.add(newLine);
+        canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, newLine);
+        trimHistory();
+        return newLine;
+    }
+
+    /** Runs on the event thread when a line has finished, normally or skipped. */
+    private static void finishMessage() {
+        typingTimer = null;
+        typingLine = null;
+        typingRequest = null;
+        isTyping = false;
+
+        if (messageQueue.isEmpty()) {
+            releaseIdleWaiters();
+        }
+        processNextMessage();
+    }
+
+    /**
+     * Reveals the rest of the print that is currently typing, including every
+     * wrapped line belonging to it, then starts the next print normally.
+     *
+     * <p>Does nothing while a prompt is waiting: Enter there is the player's
+     * answer, never a request to hurry the text along.
+     */
+    public static void skipTyping() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(Terminal::skipTyping);
+            return;
+        }
+        if (awaitingInput || !isTyping || typingRequest == null) {
+            return;
+        }
+
+        int printId = typingRequest.printId;
+        if (typingTimer != null) {
+            typingTimer.stop();
+        }
+        if (typingLine != null) {
+            typingLine.setText(typingRequest.text);
+        }
+
+        while (!messageQueue.isEmpty()
+            && messageQueue.peek().printId == printId) {
+            MessageRequest rest = messageQueue.poll();
+            addMessageLine(rest).setText(rest.text);
+        }
+
+        canvas.repaint();
+        finishMessage();
     }
 
     /** Rate-limited so a fast crawl does not turn into a solid buzz. */
@@ -443,7 +510,7 @@ public final class Terminal {
 
     /**
      * Shows the input caret and blocks the story thread until the player
-     * presses Enter.
+     * presses Enter with a non-blank answer.
      *
      * @return exactly what they typed, never null
      */
@@ -505,9 +572,18 @@ public final class Terminal {
         canvas.repaint();
     }
 
-    /** Called from the key listener on the event thread. */
+    /**
+     * Called from the key listener on the event thread. An empty answer is
+     * refused: the caret stays put and the prompt keeps waiting, so nothing
+     * downstream ever sees, or complains about, a blank answer.
+     */
     public static void handleEnter() {
         if (!awaitingInput) {
+            // Nothing is being answered, so Enter means "hurry up".
+            skipTyping();
+            return;
+        }
+        if (currentInput.trim().isEmpty()) {
             return;
         }
         awaitingInput = false;
