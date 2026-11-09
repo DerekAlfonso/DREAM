@@ -36,7 +36,7 @@ public final class Assets {
                     if (image != null) icons.add(image);
                 }
             } catch (IOException e) {
-                Log.warn("Could not load window icon: " + e.getMessage());
+                Log.warn("Could not load window icon", e);
             }
         }
         return icons;
@@ -89,7 +89,7 @@ public final class Assets {
                 }
             }
         } catch (IOException e) {
-            Log.warn("Could not read splash.txt: " + e.getMessage());
+            Log.warn("Could not read splash.txt", e);
         }
         if (splashes.isEmpty()) {
             splashes.add("Err 404: splash text not found");
@@ -116,8 +116,8 @@ public final class Assets {
             }
             Log.warn("pixelFont.ttf not found; using the built-in monospaced font.");
         } catch (Exception e) {
-            Log.warn("Could not load pixelFont.ttf (" + e.getMessage()
-                + "); using the built-in monospaced font.");
+            Log.warn("Could not load pixelFont.ttf; "
+                + "using the built-in monospaced font", e);
         }
         return new Font(Font.MONOSPACED, Font.PLAIN, 15);
     }

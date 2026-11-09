@@ -29,7 +29,7 @@ public final class SaveState {
         try (InputStream in = Files.newInputStream(FILE)) {
             props.load(in);
         } catch (IOException e) {
-            Log.warn("Could not read saveState.txt: " + e.getMessage());
+            Log.warn("Could not read saveState.txt", e);
             return;
         }
 
@@ -50,13 +50,13 @@ public final class SaveState {
         try {
             UserData.createParent(FILE);
         } catch (IOException e) {
-            Log.warn("Could not create save state directory: " + e.getMessage());
+            Log.warn("Could not create save state directory", e);
             return;
         }
         try (OutputStream out = Files.newOutputStream(FILE)) {
             props.store(out, "D.R.E.A.M save state");
         } catch (IOException e) {
-            Log.warn("Could not write saveState.txt: " + e.getMessage());
+            Log.warn("Could not write saveState.txt", e);
         }
     }
 

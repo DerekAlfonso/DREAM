@@ -34,7 +34,7 @@ public final class Settings {
             try (InputStream in = Files.newInputStream(FILE)) {
                 props.load(in);
             } catch (IOException e) {
-                Log.warn("Could not read settings.txt: " + e.getMessage());
+                Log.warn("Could not read settings.txt", e);
             }
         }
 
@@ -59,13 +59,13 @@ public final class Settings {
         try {
             UserData.createParent(FILE);
         } catch (IOException e) {
-            Log.warn("Could not create settings directory: " + e.getMessage());
+            Log.warn("Could not create settings directory", e);
             return;
         }
         try (OutputStream out = Files.newOutputStream(FILE)) {
             props.store(out, "D.R.E.A.M settings");
         } catch (IOException e) {
-            Log.warn("Could not write settings.txt: " + e.getMessage());
+            Log.warn("Could not write settings.txt", e);
         }
     }
 
