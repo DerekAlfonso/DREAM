@@ -56,21 +56,36 @@ public class Game implements Runnable {
     // ----------------------------------------------------------------- input
 
     /**
-     * Every prompt in the game goes through here, so "quit" and "exit" close
-     * the program from anywhere: the boot menu, a name prompt, the credits or
-     * the settings screen.
+     * Reads every normal prompt, so "quit" and "exit" can be handled from
+     * anywhere. If the player cancels the quit confirmation, this asks again
+     * instead of passing the quit command to the current screen.
      */
     private String ask() throws InterruptedException {
-        String input = Terminal.prompt().trim();
+        while (true) {
+            String input = Terminal.prompt().trim();
 
-        if (input.equalsIgnoreCase("quit") || input.equalsIgnoreCase("exit")) {
+            if (!input.equalsIgnoreCase("quit")
+                && !input.equalsIgnoreCase("exit")) {
+                return input;
+            }
             quit();
         }
-        return input;
     }
 
-    /** Says goodbye, then tears the program down. Does not return. */
+    /**
+     * Confirms the quit, then says goodbye and shuts down. Returns to the
+     * caller when the player decides to keep playing.
+     */
     private void quit() throws InterruptedException {
+        Terminal.print("are you sure you want to quit? type YES to confirm, or NO to stay.",
+            20, 15, Color.WHITE);
+        String answer = Terminal.prompt().trim();
+
+        if (!answer.equalsIgnoreCase("yes") && !answer.equalsIgnoreCase("y")) {
+            Terminal.print("okay, staying right here :)", 20, 15, Color.GREEN);
+            return;
+        }
+
         running = false;
         Terminal.print("Goodbye.", 40, 15, Color.GREEN);
         Terminal.awaitIdle();
@@ -202,8 +217,8 @@ public class Game implements Runnable {
         Terminal.print("but I can't just ask you questions all day (even if I want to)", 20, 15, Color.WHITE);
         Terminal.print("so lets play a few games together :)", 20, 15, Color.WHITE);
         Terminal.print("lets start with Rock, Paper, Scissors!", 20, 15, Color.WHITE);
-
         playRockPaperScissors();
+
         Terminal.print("bored already?", 20, 15, Color.WHITE);
         Terminal.print("alrighty we can do something else", 20, 15, Color.WHITE);
         Terminal.print("let me think for a second", 20, 15, Color.WHITE);
@@ -211,8 +226,13 @@ public class Game implements Runnable {
         Terminal.print("I got it!", 20, 15, Color.WHITE);
         Terminal.print("lets play a game of HangMan!", 20, 15, Color.WHITE);
         Terminal.print("I'll chose a random word and you have to guess what it is!", 20, 15, Color.WHITE);
-        
         playHangman();
+
+        Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, 15, Color.WHITE);
+        Terminal.print("how about something with a little more complexity..", 20, 15, Color.WHITE);
+        Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, 15, Color.WHITE);
+        Terminal.print("yeah, that'll be fun :)", 20, 15, Color.WHITE);
+        playDungeonCrawler();
 
         Terminal.awaitIdle();
 
@@ -222,8 +242,6 @@ public class Game implements Runnable {
 
         
     }
-
-    // ----------------------------------------------- rock, paper, scissors
 
     /**
      * Plays rounds of rock, paper, scissors until the player types DONE or
@@ -293,15 +311,42 @@ public class Game implements Runnable {
             || (move.equals("scissors") && other.equals("paper"));
     }
 
-    // ---------------------------------------------------------------- hangman
+
 
     /** Wrong letters a player may guess before the round is lost. */
     private static final int HANGMAN_MISSES = 6;
 
+    /** Used when the random-word service cannot be reached. */
+    private static final List<String> HANGMAN_FALLBACK_WORDS = List.of(
+        "APPLE", "ANCHOR", "BASKET", "BEACON", "BICYCLE", "BLANKET",
+        "BRIDGE", "BUTTER", "CACTUS", "CAMERA", "CANDLE", "CASTLE",
+        "CHERRY", "CIRCLE", "CLOUD", "COFFEE", "COMET", "CRICKET",
+        "DOLPHIN", "DRAGON", "DREAM", "EAGLE", "ENGINE", "FALCON",
+        "FEATHER", "FOREST", "GARDEN", "GUITAR", "HAMMER", "HARBOR",
+        "HELMET", "ISLAND", "JACKET", "JUNGLE", "KETTLE", "KITTEN",
+        "LADDER", "LANTERN", "LEMON", "MAGNET", "MARBLE", "MEADOW",
+        "MONKEY", "MOUNTAIN", "NOTEBOOK", "OCEAN", "ORANGE", "PANDA",
+        "PEPPER", "PIANO", "PILLOW", "PLANET", "POCKET", "PUZZLE",
+        "RABBIT", "RAINBOW", "ROCKET", "SADDLE", "SCHOOL", "SHADOW",
+        "SILVER", "SNOW", "SPIDER", "SPRING", "SUNSET", "TIGER",
+        "TUNNEL", "TURTLE", "VALLEY", "WAGON", "WINDOW", "WINTER",
+        "YELLOW", "ZEBRA"
+    );
+
     /** Returns one word as a JSON array, for example ["example"]. */
     private static final String WORD_API = "https://random-word-api.herokuapp.com/word";
+
+    /** How many requests to make before using the offline list. */
+    private static final int WORD_ATTEMPTS = 2;
+
+    /** Short timeout so a bad connection reaches the retry quickly. */
+    private static final Duration WORD_TIMEOUT = Duration.ofSeconds(3);
+
+    /** Brief pause before the single retry. */
+    private static final long WORD_RETRY_DELAY_MS = 300L;
+
     private static final HttpClient WORD_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(5))
+        .connectTimeout(Duration.ofSeconds(2))
         .followRedirects(HttpClient.Redirect.NORMAL)
         .build();
 
@@ -407,12 +452,13 @@ public class Game implements Runnable {
     /**
      * Fetches a random word from the word service and strips it down to the
      * letters the player can guess. If the service is unreachable or returns
-     * nothing usable, HANGMAN keeps the game playable.
+     * nothing usable, a word from the local list keeps the game playable
+     * offline.
      */
-    private static String getHangmanWord() {
+    private String getHangmanWord() {
         String raw = fetchRandomWord();
         if (raw == null) {
-            return "HANGMAN";
+            return randomFallbackWord();
         }
 
         StringBuilder word = new StringBuilder();
@@ -422,14 +468,38 @@ public class Game implements Runnable {
                 word.append(c);
             }
         }
-        return word.length() == 0 ? "HANGMAN" : word.toString();
+        return word.length() == 0 ? randomFallbackWord() : word.toString();
     }
 
-    /** Calls the API once and returns its first word, or null on failure. */
+    /** Picks one of the built-in words when the online service is unavailable. */
+    private String randomFallbackWord() {
+        return HANGMAN_FALLBACK_WORDS.get(random.nextInt(HANGMAN_FALLBACK_WORDS.size()));
+    }
+
+    /** Tries the API a couple of times, then returns null to use the fallback. */
     private static String fetchRandomWord() {
+        for (int attempt = 1; attempt <= WORD_ATTEMPTS; attempt++) {
+            try {
+                String word = requestRandomWord();
+                if (word != null) {
+                    return word;
+                }
+                if (attempt < WORD_ATTEMPTS) {
+                    Thread.sleep(WORD_RETRY_DELAY_MS);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Makes one request; returns its first word, or null on failure. */
+    private static String requestRandomWord() throws InterruptedException {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(WORD_API))
-                .timeout(Duration.ofSeconds(10))
+                .timeout(WORD_TIMEOUT)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -442,11 +512,8 @@ public class Game implements Runnable {
                 return null;
             }
             return parseWord(response.body());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
         } catch (IOException | IllegalArgumentException e) {
-            Log.warn("Could not fetch a Hangman word: " + e.getMessage());
+            Log.warn("Could not fetch a Hangman word", e);
             return null;
         }
     }
@@ -500,6 +567,50 @@ public class Game implements Runnable {
             text.append(letter);
         }
         return text.toString();
+    }
+
+    private boolean playDungeonCrawler() throws InterruptedException
+    {
+        Terminal.print("Loading Dungeon Crawler..", 20, 15, Color.WHITE);
+        pause(5000);
+        Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
+        Terminal.blankLine();
+        Terminal.print("[1] Campaign Mode", 20, 15, Color.WHITE);
+        Terminal.print("[2] Endless Mode", 20, 15, Color.WHITE);
+
+        while (running) {
+            String choice = ask();
+
+            if (choice.equalsIgnoreCase("1")
+                || choice.equalsIgnoreCase("campaign")
+                || choice.equalsIgnoreCase("campaign mode")) {
+                playCampaignMode();
+                return true;
+            }
+
+            if (choice.equalsIgnoreCase("2")
+                || choice.equalsIgnoreCase("endless")
+                || choice.equalsIgnoreCase("endless mode")) {
+                playEndlessMode();
+                return true;
+            }
+
+            Terminal.print("please choose 1 (Campaign) or 2 (Endless).",
+                20, 15, Color.RED);
+        }
+        return false;
+    }
+
+    /** Starts Campaign Mode. The mode itself is still a placeholder. */
+    private void playCampaignMode() throws InterruptedException {
+        Terminal.print("Campaign Mode is not implemented yet.",
+            20, 15, Color.CYAN);
+        Terminal.blankLine();
+    }
+
+    /** Starts a run of the endless dungeon. */
+    private void playEndlessMode() throws InterruptedException {
+        EndlessMode.play(this::ask);
     }
 
     /**

@@ -134,7 +134,7 @@ public final class AudioManager {
     /**
      * Strips leading and trailing silence from a decoded effect.
      *
-     * <p>The source MP3s are heavily padded: the keyboard clicks are a 150ms tap
+     * The source MP3s are heavily padded: the keyboard clicks are a 150ms tap
      * followed by over a second of nothing, and some scroll sounds start a third
      * of the way in. Left alone that makes scroll clicks feel late and keeps
      * voices in the pool busy playing silence, so rapid typing runs out of them.
