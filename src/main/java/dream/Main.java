@@ -93,9 +93,13 @@ public final class Main {
 
         Terminal.attach(canvas, terminalFont);
 
+        // The picture is 4:3, so the window opens 4:3 rather than matching the
+        // display. Maximising afterwards leaves black bezel either side, which
+        // is the point: the game never stretches.
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        int windowHeight = (int) (screen.height * 0.85);
         canvas.setPreferredSize(new Dimension(
-            (int) (screen.width * 0.8), (int) (screen.height * 0.8)));
+            windowHeight / 3 * 4, windowHeight));
 
         frame = new JFrame("D.R.E.A.M");
         frame.setIconImages(Assets.loadWindowIcons());
