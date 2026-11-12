@@ -26,6 +26,15 @@ public final class Settings {
      */
     public static double textScale = 1.0;
 
+    /** How much CRT filtering the software shader applies. */
+    public static CrtShader.Preset crt = CrtShader.Preset.OFF;
+
+    /**
+     * Filter resolution, 1-3. 1 filters at full resolution; 2 and 3 filter at
+     * 1.5x and 2x downsampling, which softens the text.
+     */
+    public static int crtQuality = 1;
+
     private Settings() { }
 
     public static void load() {
@@ -45,6 +54,10 @@ public final class Settings {
         typingSounds = Boolean.parseBoolean(
             props.getProperty("typingSounds", String.valueOf(typingSounds)));
 
+        CrtShader.Preset loadedCrt = parseCrt(props.getProperty("crt", crtName(crt)));
+        crt = loadedCrt == null ? CrtShader.Preset.OFF : loadedCrt;
+        crtQuality = clampQuality(readInt(props, "crtQuality", crtQuality));
+
         apply();
     }
 
@@ -55,6 +68,8 @@ public final class Settings {
         props.setProperty("textSpeed", String.valueOf(textSpeed));
         props.setProperty("textScale", String.valueOf(textScale));
         props.setProperty("typingSounds", String.valueOf(typingSounds));
+        props.setProperty("crt", crtName(crt));
+        props.setProperty("crtQuality", String.valueOf(crtQuality));
 
         try {
             UserData.createParent(FILE);
@@ -77,10 +92,37 @@ public final class Settings {
         Terminal.setTypingSounds(typingSounds);
         // Text size may have changed, so recentre and rescale what is on screen.
         Terminal.relayout();
+        // The filter settings may have changed, so drop the cached frame.
+        CurveCanvas.refreshCrt();
     }
 
     public static double clampScale(double value) {
         return Math.max(0.5, Math.min(3.0, value));
+    }
+
+    public static int clampQuality(int value) {
+        return Math.max(1, Math.min(3, value));
+    }
+
+    /** Parses off / light / full. Returns null for anything else. */
+    public static CrtShader.Preset parseCrt(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        switch (raw.trim().toLowerCase()) {
+            case "off":
+                return CrtShader.Preset.OFF;
+            case "light":
+                return CrtShader.Preset.LIGHT;
+            case "full":
+                return CrtShader.Preset.FULL;
+            default:
+                return null;
+        }
+    }
+
+    public static String crtName(CrtShader.Preset preset) {
+        return preset.name().toLowerCase();
     }
 
     private static float readFloat(Properties props, String key, float fallback) {
@@ -94,6 +136,14 @@ public final class Settings {
     private static double readDouble(Properties props, String key, double fallback) {
         try {
             return Double.parseDouble(props.getProperty(key, String.valueOf(fallback)));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static int readInt(Properties props, String key, int fallback) {
+        try {
+            return Integer.parseInt(props.getProperty(key, String.valueOf(fallback)));
         } catch (NumberFormatException e) {
             return fallback;
         }
