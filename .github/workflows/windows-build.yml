@@ -1,33 +1,55 @@
 name: Desktop builds
 
+# Builds only run for the master branch: on pushes/merges to master, or when
+# started by hand from the Actions tab (choose master in the branch picker).
 on:
   push:
-  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on: windows-2022
+  # Computes one version for the whole run: MAJOR.MINOR from <revision> in pom.xml,
+  # PATCH = the workflow run number, so every build gets a new, increasing version.
+  # (jpackage only accepts up to three numeric parts, so a fourth "build" part is not an option.)
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.v.outputs.app_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - id: v
+        shell: bash
+        run: |
+          base=$(python3 -c 'import xml.etree.ElementTree as ET; ns={"m":"http://maven.apache.org/POM/4.0.0"}; print(ET.parse("pom.xml").getroot().find("m:properties/m:revision", ns).text)')
+          major_minor=$(echo "$base" | cut -d. -f1-2)
+          version="${major_minor}.${{ github.run_number }}"
+          echo "app_version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building version $version"
+
+  windows:
+    needs: version
+    runs-on: windows-2022
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Build and verify JAR
-        run: mvn -B --no-transfer-progress clean verify
+        run: mvn -B --no-transfer-progress clean verify "-Drevision=$env:APP_VERSION"
 
       - name: Stage application
         shell: pwsh
         run: |
-          $version = ([xml](Get-Content pom.xml -Raw)).project.version
-          "APP_VERSION=$version" >> $env:GITHUB_ENV
           New-Item -ItemType Directory -Force dist/input, dist/output | Out-Null
           Copy-Item target/dream.jar dist/input/dream.jar
 
@@ -53,7 +75,9 @@ jobs:
             --icon src/main/resources/assets/icons/dream.ico `
             --win-per-user-install --win-menu --win-shortcut
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (!(Get-ChildItem dist/output -Filter '*.exe')) { throw 'Installer was not created' }
+          $exe = Get-ChildItem dist/output -Filter '*.exe' | Select-Object -First 1
+          if (!$exe) { throw 'Installer was not created' }
+          Rename-Item $exe.FullName "DREAM-$env:APP_VERSION-windows-x64-setup.exe"
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
@@ -71,6 +95,7 @@ jobs:
 
   macos:
     name: macOS ${{ matrix.arch }}
+    needs: version
     strategy:
       matrix:
         include:
@@ -79,23 +104,23 @@ jobs:
           - runner: macos-15-intel
             arch: x64
     runs-on: ${{ matrix.runner }}
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Build and verify JAR
-        run: mvn -B --no-transfer-progress clean verify
+        run: mvn -B --no-transfer-progress clean verify "-Drevision=$APP_VERSION"
 
       - name: Stage application
         shell: bash
         run: |
-          version=$(python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("pom.xml").getroot(); print(root.find("{http://maven.apache.org/POM/4.0.0}version").text)')
-          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
           mkdir -p dist/input dist/output
           cp target/dream.jar dist/input/dream.jar
 
@@ -116,3 +141,34 @@ jobs:
           path: dist/output/*.dmg
           archive: false
           if-no-files-found: error
+
+  # Workflow artifacts only live on the Actions run page. Publishing them under
+  # Releases needs a tag + GitHub Release with the files attached, which needs
+  # write access to repo contents. Guarded to master so a manual run started on
+  # another branch can't publish a release.
+  release:
+    needs: [version, windows, macos]
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      APP_VERSION: ${{ needs.version.outputs.app_version }}
+    steps:
+      - name: Download build outputs
+        uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          ls -la release
+          gh release create "v${APP_VERSION}" release/* \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "DREAM ${APP_VERSION}" \
+            --generate-notes
