@@ -86,11 +86,15 @@ jobs:
           archive: false
           if-no-files-found: error
 
+      # Uploaded as a normal (archived) artifact on purpose: with archive: false the
+      # artifact *is* the .zip, and download-artifact unpacks it into a DREAM/ folder,
+      # which then can't be attached to the release. Wrapped once, it unpacks back
+      # to the original .zip file.
       - name: Upload portable build
         uses: actions/upload-artifact@v7
         with:
+          name: DREAM-${{ env.APP_VERSION }}-windows-x64-portable
           path: dist/output/*.zip
-          archive: false
           if-no-files-found: error
 
   macos:
@@ -167,6 +171,17 @@ jobs:
         shell: bash
         run: |
           ls -la release
+          # Fail before creating the release/tag if anything is missing or not a plain file.
+          for f in \
+            "DREAM-${APP_VERSION}-windows-x64-setup.exe" \
+            "DREAM-${APP_VERSION}-windows-x64-portable.zip" \
+            "DREAM-${APP_VERSION}-macos-arm64.dmg" \
+            "DREAM-${APP_VERSION}-macos-x64.dmg"; do
+            test -f "release/$f" || { echo "::error::Missing release file: $f"; exit 1; }
+          done
+          if find release -mindepth 1 -maxdepth 1 -type d | grep -q .; then
+            echo "::error::Unexpected directory in release/ (an artifact was unpacked)"; exit 1
+          fi
           gh release create "v${APP_VERSION}" release/* \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
