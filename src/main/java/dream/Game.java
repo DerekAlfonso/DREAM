@@ -260,7 +260,7 @@ public class Game implements Runnable {
         Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         Terminal.blankLine();
         Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
-        Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, SaveState.favoriteColor);
+        Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, NamedColors.display(SaveState.favoriteColor));
     }
 
     /**
