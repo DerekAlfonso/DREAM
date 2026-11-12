@@ -104,7 +104,7 @@ public final class CrtShader {
     private static final int GAIN_CAP = 2 * ONE;
 
     /** How much smaller the phosphor bleed buffer is than the pass buffer. */
-    private static final int GLOW_DIVISOR = 4;
+    private static final int GLOW_DIVISOR = 2;
 
     /**
      * Blur radius, in bleed-buffer pixels, and how many times to apply it. One
@@ -242,6 +242,13 @@ public final class CrtShader {
      * twice that, which is the shape of a tube's face.
      */
     private static final double EDGE_INSET = 0.05;
+
+    /**
+     * What fills the area outside the curved edge of the raster. It matches the
+     * canvas background, so the surround reads as the matte around the tube
+     * rather than as a black letterbox pasted over it.
+     */
+    private static final int BEZEL = 0x0E100F;
 
     /**
      * Destination to source coordinate table.
@@ -495,7 +502,7 @@ public final class CrtShader {
                 int syFix = warpSy[i];
                 if (syFix < 0) {
                     // Outside the curved edge of the face.
-                    dst[i] = 0;
+                    dst[i] = BEZEL;
                     continue;
                 }
 
