@@ -232,6 +232,7 @@ public class Game implements Runnable {
         Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, standardSize, Color.WHITE);
         Terminal.print("how about something with a little more complexity..", 20, standardSize, Color.WHITE);
         Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
+        pause(500);
         Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
         playDungeonCrawler();
 
@@ -239,7 +240,7 @@ public class Game implements Runnable {
         Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
         Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
         Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
-        Terminal.print(". . .", 200, standardSize, Color.WHITE);
+        Terminal.print(". . .", 600, standardSize, Color.WHITE);
         Terminal.print("I can't seem to find a drumroll sound in my files, just imagine what one would sound like here", 20, standardSize, Color.WHITE);
         Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
         Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
@@ -251,10 +252,15 @@ public class Game implements Runnable {
         Terminal.blankLine();
     }
 
+    // the shmeat and potatoes, where it gets real... story wise at least, the rest of the game has already tested my limits
     private void playCYA() throws InterruptedException {
         Terminal.blankLine();
+        Terminal.print("Loading CYA . . .", 1, standardSize, Color.WHITE);
+        pause(5000);
         Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         Terminal.blankLine();
+        Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
+        Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, SaveState.favoriteColor);
     }
 
     /**
@@ -264,6 +270,7 @@ public class Game implements Runnable {
      */
     private void playRockPaperScissors() throws InterruptedException {
         Terminal.blankLine();
+        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         Terminal.print("Rock, Paper, Scissors!", 20, standardSize, Color.CYAN);
         Terminal.print("type rock, paper or scissors, or DONE / BACK to stop playing.",
             15, 15, Color.WHITE);
@@ -371,7 +378,8 @@ public class Game implements Runnable {
      */
     private void playHangman() throws InterruptedException {
         boolean keepPlaying = true;
-
+        Terminal.blankLine();
+Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         while (running && keepPlaying) {
             keepPlaying = playHangmanRound(getHangmanWord());
             if (keepPlaying) {
