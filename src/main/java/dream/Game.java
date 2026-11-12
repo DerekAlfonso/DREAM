@@ -235,13 +235,26 @@ public class Game implements Runnable {
         Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
         playDungeonCrawler();
 
+        Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
+        Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
+        Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
+        Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
+        Terminal.print(". . .", 200, standardSize, Color.WHITE);
+        Terminal.print("I can't seem to find a drumroll sound in my files, just imagine what one would sound like here", 20, standardSize, Color.WHITE);
+        Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
+        Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
+        playCYA();
         Terminal.awaitIdle();
 
         SaveState.save();
         pause(1500);
         Terminal.blankLine();
+    }
 
-        
+    private void playCYA() throws InterruptedException {
+        Terminal.blankLine();
+        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
+        Terminal.blankLine();
     }
 
     /**

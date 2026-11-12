@@ -456,7 +456,7 @@ public final class Terminal {
         long now = System.currentTimeMillis();
         if (now - lastClickAt >= CLICK_INTERVAL_MS) {
             lastClickAt = now;
-            AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+            AudioManager.playTypingClick();
         }
     }
 
@@ -556,7 +556,7 @@ public final class Terminal {
         if (c >= 32 && c <= 126) {
             currentInput += c;
             inputLine.setText(promptSymbol + currentInput);
-            AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+            AudioManager.playTypingClick();
             canvas.repaint();
         }
     }
@@ -568,7 +568,7 @@ public final class Terminal {
         }
         currentInput = currentInput.substring(0, currentInput.length() - 1);
         inputLine.setText(promptSymbol + currentInput);
-        AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+                    AudioManager.playTypingClick();
         canvas.repaint();
     }
 
@@ -592,7 +592,7 @@ public final class Terminal {
         inputLine = null;
         currentInput = "";
 
-        AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+                    AudioManager.playTypingClick();
 
         if (inputResult != null) {
             inputResult.offer(submitted);

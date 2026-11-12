@@ -225,8 +225,27 @@ public final class AudioManager {
 
     // -------------------------------------------------------------- playback
 
+    /**
+     * Typing sits under everything else on screen, and a message can fire a
+     * click every few frames, so keystrokes play at a fraction of the effect
+     * volume rather than at full strength.
+     */
+    public static final float TYPING_GAIN = 0.45f;
+
+    /** A keystroke: one of the keyboard clicks, at the quieter typing level. */
+    public static void playTypingClick() {
+        if (KEYBOARD_CLICKS.length > 0) {
+            playSfx(KEYBOARD_CLICKS[RANDOM.nextInt(KEYBOARD_CLICKS.length)], TYPING_GAIN);
+        }
+    }
+
     /** Plays one effect. Returns immediately; overlapping calls are fine. */
     public static void playSfx(String name) {
+        playSfx(name, 1f);
+    }
+
+    /** Plays one effect at a fraction of the effect volume. */
+    private static void playSfx(String name, float gain) {
         if (!audioAvailable || sfxVolume <= 0f) {
             return;
         }
@@ -242,7 +261,7 @@ public final class AudioManager {
                 return;
             }
             clip.setFramePosition(0);
-            applyVolume(clip, sfxVolume);
+            applyVolume(clip, sfxVolume * gain);
             clip.start();
         } catch (Exception e) {
             reportFailureOnce("Could not play " + name, e);
