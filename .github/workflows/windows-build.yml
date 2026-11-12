@@ -1,8 +1,10 @@
 name: Desktop builds
 
+# Builds only run for the master branch: on pushes/merges to master, or when
+# started by hand from the Actions tab (choose master in the branch picker).
 on:
   push:
-  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -142,10 +144,11 @@ jobs:
 
   # Workflow artifacts only live on the Actions run page. Publishing them under
   # Releases needs a tag + GitHub Release with the files attached, which needs
-  # write access to repo contents. Only done for pushes to master, not PRs/branches.
+  # write access to repo contents. Guarded to master so a manual run started on
+  # another branch can't publish a release.
   release:
     needs: [version, windows, macos]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: write
