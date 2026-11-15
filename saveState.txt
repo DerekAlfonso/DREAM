@@ -1,5 +1,5 @@
 #D.R.E.A.M save state
-#Mon Nov 09 01:00:38 CST 2026
-cpuName=REM
-favoriteColor=Purple
-username=Aesfo
+#Thu Nov 12 00:25:09 CST 2026
+cpuName=
+favoriteColor=
+username=

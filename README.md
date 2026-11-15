@@ -60,10 +60,30 @@ The packaged Windows app stores it in `%APPDATA%\DREAM`:
 | `textSpeed` | 0.1 - 5.0 | Typing speed, higher is faster |
 | `textScale` | 0.5 - 3.0 | Text size, on top of automatic screen scaling |
 | `typingSounds` | true / false | Click as dialogue types itself out |
+| `crt` | off / light / full | Software CRT filter: scanlines, shadow mask, curved glass |
+| `crtQuality` | 1 - 3 | Filter resolution; 1 is sharpest, 2 and 3 are cheaper |
 
 Change a value with `set <name> <value>`, for example `set textSpeed 2.0` or
 `set textScale 1.4`. Changes apply immediately, including to text already on
 screen.
+
+The screen is locked to 4:3. However the window is shaped, the picture fills
+the largest centred 4:3 rectangle and the leftover space stays black, so the
+game never stretches on a widescreen or ultrawide display. The picture itself
+has the curved, rounded corners of a tube rather than square ones, and its
+background is a dark unlit-phosphor wash rather than flat black. The picture
+sits slightly inside the frame so the bowed edges of the raster are visible
+against the bezel: the outline curve is even, with equal margins left to right
+and top to bottom, and the gaps at the corners are wider than at the middle of
+an edge, the way a tube's face curves away from its mask.
+
+`crt` runs the finished picture through a software CRT filter: a curved glass
+warp, thinning scanlines, a three-dot shadow mask, vignette and phosphor
+bleed. It replaces the hand-drawn scanline layer rather than stacking with it.
+`light` is a gentle etch and `full` is a tired old tube. The filter is
+recomputed only when the picture changes, so a still screen costs nothing; if
+fast typing feels heavy, raise `crtQuality`, which filters a smaller buffer
+(1.5x at 2, 2x at 3) and softens the text a little.
 
 Text already scales itself to the screen height, so `textScale` is a nudge on
 top of that rather than the whole story. The terminal keeps dialogue in a
@@ -83,7 +103,8 @@ src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
   Game.java                      The story, on its own thread
   Terminal.java                  Typing animation, word wrap, input, scrolling
-  CurveCanvas.java               CRT rendering with barrel distortion
+  CurveCanvas.java               4:3 viewport, offscreen scene, barrel distortion
+  CrtShader.java                 Software CRT filter: warp, scanlines, mask, bloom
   AudioManager.java              MP3 decoding and playback
   Assets.java                    Loads embedded files
   Settings.java / SaveState.java Persistence

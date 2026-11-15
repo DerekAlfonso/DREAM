@@ -1,7 +1,9 @@
 #D.R.E.A.M settings
-#Mon Nov 09 01:00:38 CST 2026
+#Wed Nov 11 23:31:01 CST 2026
+crt=full
+crtQuality=3
 musicVolume=0.5
-sfxVolume=0.7
-textScale=1.0
+sfxVolume=0.15
+textScale=1.5
 textSpeed=1.0
 typingSounds=true

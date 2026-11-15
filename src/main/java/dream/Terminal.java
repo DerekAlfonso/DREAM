@@ -144,8 +144,8 @@ public final class Terminal {
      */
     private static double uiScale() {
         double auto = MIN_AUTO_SCALE;
-        if (canvas != null && canvas.getHeight() > 0) {
-            auto = canvas.getHeight() / (double) REFERENCE_HEIGHT;
+        if (canvas != null && canvas.getViewHeight() > 0) {
+            auto = canvas.getViewHeight() / (double) REFERENCE_HEIGHT;
             auto = Math.max(MIN_AUTO_SCALE, Math.min(MAX_AUTO_SCALE, auto));
         }
         return auto * Settings.textScale;
@@ -165,8 +165,8 @@ public final class Terminal {
      * terminal.
      */
     private static int contentWidth() {
-        int canvasWidth = canvas != null && canvas.getWidth() > 0
-            ? canvas.getWidth() : 1280;
+        int canvasWidth = canvas != null && canvas.getViewWidth() > 0
+            ? canvas.getViewWidth() : 1280;
         int cap = scaled(BASE_MAX_COLUMN);
         int available = canvasWidth - scaled(80);
         return Math.max(320, Math.min(available, cap));
@@ -174,8 +174,8 @@ public final class Terminal {
 
     /** Left edge of the text column, centred within the canvas. */
     private static int startX() {
-        int canvasWidth = canvas != null && canvas.getWidth() > 0
-            ? canvas.getWidth() : 1280;
+        int canvasWidth = canvas != null && canvas.getViewWidth() > 0
+            ? canvas.getViewWidth() : 1280;
         return Math.max(scaled(20), (canvasWidth - contentWidth()) / 2);
     }
 
@@ -456,12 +456,12 @@ public final class Terminal {
         long now = System.currentTimeMillis();
         if (now - lastClickAt >= CLICK_INTERVAL_MS) {
             lastClickAt = now;
-            AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+            AudioManager.playTypingClick();
         }
     }
 
     private static int homeY() {
-        int height = canvas.getHeight() > 0 ? canvas.getHeight() : 800;
+        int height = canvas.getViewHeight() > 0 ? canvas.getViewHeight() : 800;
         return (height - scaled(BASE_HOME_MARGIN)) + scrollOffset;
     }
 
@@ -556,7 +556,7 @@ public final class Terminal {
         if (c >= 32 && c <= 126) {
             currentInput += c;
             inputLine.setText(promptSymbol + currentInput);
-            AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+            AudioManager.playTypingClick();
             canvas.repaint();
         }
     }
@@ -568,7 +568,7 @@ public final class Terminal {
         }
         currentInput = currentInput.substring(0, currentInput.length() - 1);
         inputLine.setText(promptSymbol + currentInput);
-        AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+                    AudioManager.playTypingClick();
         canvas.repaint();
     }
 
@@ -592,7 +592,7 @@ public final class Terminal {
         inputLine = null;
         currentInput = "";
 
-        AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS);
+                    AudioManager.playTypingClick();
 
         if (inputResult != null) {
             inputResult.offer(submitted);
@@ -627,7 +627,7 @@ public final class Terminal {
             maxY = Math.max(maxY, line.y);
         }
 
-        int height = canvas.getHeight() > 0 ? canvas.getHeight() : 800;
+        int height = canvas.getViewHeight() > 0 ? canvas.getViewHeight() : 800;
         int restingY = height - scaled(BASE_HOME_MARGIN);
 
         // Never scroll the newest line above where it normally sits.
