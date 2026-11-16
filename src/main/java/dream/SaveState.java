@@ -18,6 +18,17 @@ public final class SaveState {
     public static String username = null;
     public static String cpuName = null;
     public static String favoriteColor = null;
+    public static String purpose = null;
+    public static String CYALocation = null;
+
+    /** How far the main story has got. Null means a new game. */
+    public static String stage = null;
+
+    /** Profile done, but the minigames are still in progress. */
+    public static final String STAGE_MINIGAMES = "minigames";
+
+    /** Minigames done; the CYA is in progress or waiting to start. */
+    public static final String STAGE_CYA = "cya";
 
     private SaveState() { }
 
@@ -36,6 +47,9 @@ public final class SaveState {
         username = emptyToNull(props.getProperty("username"));
         cpuName = emptyToNull(props.getProperty("cpuName"));
         favoriteColor = emptyToNull(props.getProperty("favoriteColor"));
+        purpose = emptyToNull(props.getProperty("purpose"));
+        CYALocation = emptyToNull(props.getProperty("CYALocation"));
+        stage = emptyToNull(props.getProperty("stage"));
         if (username != null) {
             Log.info("Loaded save state for " + username);
         }
@@ -46,6 +60,9 @@ public final class SaveState {
         props.setProperty("username", nullToEmpty(username));
         props.setProperty("cpuName", nullToEmpty(cpuName));
         props.setProperty("favoriteColor", nullToEmpty(favoriteColor));
+        props.setProperty("purpose", nullToEmpty(purpose));
+        props.setProperty("CYALocation", nullToEmpty(CYALocation));
+        props.setProperty("stage", nullToEmpty(stage));
 
         try {
             UserData.createParent(FILE);
@@ -68,6 +85,9 @@ public final class SaveState {
         username = null;
         cpuName = null;
         favoriteColor = null;
+        purpose = null;
+        CYALocation = null;
+        stage = null;
         save();
     }
 

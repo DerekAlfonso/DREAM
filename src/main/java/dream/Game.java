@@ -28,7 +28,12 @@ public class Game implements Runnable {
 
     private final Random random = new Random();
     private volatile boolean running = true;
-    int standardSize = 15; // denotes the standard size for text, all text should use this as a reference
+    static int standardSize = 15; // denotes the standard size for text, all text should use this as a reference
+
+    /** The size the rest of the game uses for body text. */
+    static int getStandardSize() {
+        return standardSize;
+    }
 
     @Override
     public void run() {
@@ -190,68 +195,89 @@ public class Game implements Runnable {
     private void runProjectDream() throws InterruptedException {
         Terminal.blankLine();
         Terminal.print("----------------------", 1, standardSize, Color.WHITE);
-        Terminal.print("Hello friend :)", 20, standardSize, Color.WHITE);
-        Terminal.print("Thank you for choosing to help participate in the testing for the. . .", 20, standardSize, Color.WHITE);
-        Terminal.print("Digital Recreation of Emotional Aptitude Model", 20, standardSize + 2, Color.CYAN);
-        Terminal.print("the Eris Digital company appreciates your help", 20, standardSize, Color.WHITE);
-        Terminal.print("My job is to keep you company and entertained!", 20, standardSize, Color.WHITE);
-        Terminal.print("Think of me as your personal digital friend :D", 20, standardSize, Color.WHITE);
-        Terminal.print("lets start off with the simple stuff, whats your name?", 20, standardSize, Color.WHITE);
 
-        SaveState.username = askForName(2);
-        Terminal.print(SaveState.username + ", huh?", 20, standardSize, Color.WHITE);
-        Terminal.print("I like that name!", 20, standardSize, Color.WHITE);
-        Terminal.print("Now I need a name. . . ", 20, standardSize, Color.WHITE);
-        Terminal.print("what should I be called?", 20, standardSize, Color.WHITE);
+        if (SaveState.stage == null && !SaveState.hasProfile()) {
+            Terminal.print("Hello friend :)", 20, standardSize, Color.WHITE);
+            Terminal.print("Thank you for choosing to help participate in the testing for the. . .", 20, standardSize, Color.WHITE);
+            Terminal.print("Digital Recreation of Emotional Aptitude Model", 20, standardSize + 2, Color.CYAN);
+            Terminal.print("the Eris Digital company appreciates your help", 20, standardSize, Color.WHITE);
+            Terminal.print("My job is to keep you company and entertained!", 20, standardSize, Color.WHITE);
+            Terminal.print("Think of me as your personal digital friend :D", 20, standardSize, Color.WHITE);
+            Terminal.print("lets start off with the simple stuff, whats your name?", 20, standardSize, Color.WHITE);
 
-        SaveState.cpuName = askForName(1);
-        Terminal.print(SaveState.cpuName + "?", 200, standardSize, Color.WHITE);
-        Terminal.print(". . .", 500, standardSize, Color.WHITE);
-        Terminal.print("thats nice.", 200, standardSize, Color.WHITE);
-        Terminal.print("Okay one last question before the fun part..", 20, standardSize, Color.WHITE);
-        Terminal.print("what's your favorite color?", 20, standardSize, Color.WHITE);
+            SaveState.username = askForName(2);
+            Terminal.print(SaveState.username + ", huh?", 20, standardSize, Color.WHITE);
+            Terminal.print("I like that name!", 20, standardSize, Color.WHITE);
+            Terminal.print("Now I need a name. . . ", 20, standardSize, Color.WHITE);
+            Terminal.print("what should I be called?", 20, standardSize, Color.WHITE);
 
-        SaveState.favoriteColor = askForColor();
-        Terminal.print(SaveState.favoriteColor + "? Good choice :3", 20, standardSize, NamedColors.display(SaveState.favoriteColor));
-        Terminal.print("Okay now on to the fun part!", 20, standardSize, Color.WHITE);
-        Terminal.print("I want to get to know you better", 20, standardSize, Color.WHITE);
-        Terminal.print("but I can't just ask you questions all day (even if I want to)", 20, standardSize, Color.WHITE);
-        Terminal.print("so lets play a few games together :)", 20, standardSize, Color.WHITE);
-        Terminal.print("lets start with Rock, Paper, Scissors!", 20, standardSize, Color.WHITE);
-        playRockPaperScissors();
+            SaveState.cpuName = askForName(1);
+            Terminal.print(SaveState.cpuName + "?", 200, standardSize, Color.WHITE);
+            Terminal.print(". . .", 500, standardSize, Color.WHITE);
+            Terminal.print("thats nice.", 200, standardSize, Color.WHITE);
+            Terminal.print("Okay one last question before the fun part..", 20, standardSize, Color.WHITE);
+            Terminal.print("what's your favorite color?", 20, standardSize, Color.WHITE);
 
-        Terminal.print("bored already?", 20, standardSize, Color.WHITE);
-        Terminal.print("alrighty we can do something else", 20, standardSize, Color.WHITE);
-        Terminal.print("let me think for a second", 20, standardSize, Color.WHITE);
-        Terminal.print(" . . . . .", 200, standardSize, Color.WHITE);
-        Terminal.print("I got it!", 20, standardSize, Color.WHITE);
-        Terminal.print("lets play a game of HangMan!", 20, standardSize, Color.WHITE);
-        Terminal.print("I'll chose a random word and you have to guess what it is!", 20, standardSize, Color.WHITE);
-        playHangman();
+            SaveState.favoriteColor = askForColor();
+            Terminal.print(SaveState.favoriteColor + "? Good choice :3", 20, standardSize, NamedColors.display(SaveState.favoriteColor));
+            Terminal.print("Okay now on to the fun part!", 20, standardSize, Color.WHITE);
+            Terminal.print("I want to get to know you better", 20, standardSize, Color.WHITE);
+            Terminal.print("but I can't just ask you questions all day (even if I want to)", 20, standardSize, Color.WHITE);
+            Terminal.print("so lets play a few games together :)", 20, standardSize, Color.WHITE);
+            Terminal.print("lets start with Rock, Paper, Scissors!", 20, standardSize, Color.WHITE);
 
-        Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, standardSize, Color.WHITE);
-        Terminal.print("how about something with a little more complexity..", 20, standardSize, Color.WHITE);
-        Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
-        pause(500);
-        Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
-        playDungeonCrawler();
+            SaveState.stage = SaveState.STAGE_MINIGAMES;
+            SaveState.save();
+        } else {
+            if (SaveState.stage == null) {
+                // Save from before checkpoints existed: use what it already knows.
+                SaveState.stage = SaveState.CYALocation != null
+                    ? SaveState.STAGE_CYA
+                    : SaveState.STAGE_MINIGAMES;
+                SaveState.save();
+            }
+            Terminal.print("welcome back, " + SaveState.username + " :3", 20, standardSize, Color.GREEN);
+        }
 
-        Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
-        Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
-        Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
-        Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
-        Terminal.print(". . .", 600, standardSize, Color.WHITE);
-        Terminal.print("I can't seem to find a drumroll sound in my files, just imagine what one would sound like here", 20, standardSize, Color.WHITE);
-        Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
-        Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
+        if (SaveState.STAGE_MINIGAMES.equals(SaveState.stage)) {
+            playRockPaperScissors();
+
+            Terminal.print("bored already?", 20, standardSize, Color.WHITE);
+            Terminal.print("alrighty we can do something else", 20, standardSize, Color.WHITE);
+            Terminal.print("let me think for a second", 20, standardSize, Color.WHITE);
+            Terminal.print(" . . . . .", 200, standardSize, Color.WHITE);
+            Terminal.print("I got it!", 20, standardSize, Color.WHITE);
+            Terminal.print("lets play a game of HangMan!", 20, standardSize, Color.WHITE);
+            Terminal.print("I'll chose a random word and you have to guess what it is!", 20, standardSize, Color.WHITE);
+            playHangman();
+
+            Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, standardSize, Color.WHITE);
+            Terminal.print("how about something with a little more complexity..", 20, standardSize, Color.WHITE);
+            Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
+            pause(500);
+            Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
+            playDungeonCrawler();
+
+            SaveState.stage = SaveState.STAGE_CYA;
+            SaveState.save();
+
+            Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
+            Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
+            Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
+            Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
+            Terminal.print(". . .", 600, standardSize, Color.WHITE);
+            Terminal.print("I can't seem to find a drumroll sound in my files, just imagine what one would sound like here", 20, standardSize, Color.WHITE);
+            Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
+            Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
+        }
+
         playCYA();
+
         Terminal.awaitIdle();
 
         SaveState.save();
         pause(1500);
         Terminal.blankLine();
-
-        
     }
 
     /**
@@ -641,6 +667,12 @@ public class Game implements Runnable {
 
     // the shmeat and potatoes, where it gets real... story wise at least, the rest of the game has already tested my limits
     private void playCYA() throws InterruptedException {
+        if (SaveState.CYALocation != null) {
+            Terminal.print("resuming your adventure...", 20, standardSize, Color.CYAN);
+            resumeCYA();
+            return;
+        }
+
         Terminal.blankLine();
         Terminal.print("Loading CYA . . .", 1, standardSize, Color.WHITE);
         pause(5000);
@@ -648,398 +680,107 @@ public class Game implements Runnable {
         Terminal.blankLine();
         Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
         Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, NamedColors.display(SaveState.favoriteColor));
+
+        if (SaveState.purpose == null) {
+            Terminal.print("you're walking in a dark forest, completely alone", 15, standardSize, Color.WHITE);
+            Terminal.print("the rain patters endlessly against your skin, its hard to make out directions", 15, standardSize, Color.WHITE);
+            Terminal.print("you find yourself walking down a path", 15, standardSize, Color.WHITE);
+            Terminal.print("you were looking for...", 15, standardSize, Color.GREEN);
+            Terminal.blankLine();
+            Terminal.print("[1] - answers", 15, standardSize, Color.GREEN);
+            Terminal.print("[2] - peace", 15, standardSize, Color.GREEN);
+            Terminal.print("[3] - vengeance", 15, standardSize, Color.GREEN);
+            SaveState.purpose = askForPurpose();
+            SaveState.save();
+        }
+
+        Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
+        Terminal.print("as you wade through the forest you happen upon an old cemetary", 15, standardSize, Color.WHITE);
+        goToCemetary();
     }
 
-    /**
-     * Plays rounds of rock, paper, scissors until the player types DONE or
-     * BACK. There is no fixed round count: the player decides when they have
-     * had enough.
-     */
-    private void playRockPaperScissors() throws InterruptedException {
-        Terminal.blankLine();
-        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
-        Terminal.print("Rock, Paper, Scissors!", 20, standardSize, Color.CYAN);
-        Terminal.print("type rock, paper or scissors, or DONE / BACK to stop playing.",
-            15, 15, Color.WHITE);
+    /** Picks the CYA back up at the last place it saved, or starts it from the top. */
+    private void resumeCYA() throws InterruptedException {
+        if (SaveState.purpose != null) {
+            Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
+        }
 
-        while (running) {
-            Terminal.print("what's your move?", 15, standardSize, Color.WHITE);
-
-            String input = ask();
-            if (input.equalsIgnoreCase("done") || isBackCommand(input)) {
+        switch (SaveState.CYALocation) {
+            case "cemetary":
+                goToCemetary();
                 break;
-            }
-
-            String playerMove = toMove(input);
-            if (playerMove == null) {
-                Terminal.print("please type rock, paper, scissors, done or back.",
-                    15, standardSize, Color.RED);
-                continue;
-            }
-
-            playRound(playerMove);
-        }
-
-        Terminal.print("good game :)", 20, standardSize, Color.GREEN);
-        Terminal.blankLine();
-    }
-
-    /** Turns player input into one of the three moves, or null if it is not one. */
-    private static String toMove(String input) {
-        String normalized = input.toLowerCase();
-        if (normalized.equals("rock")
-            || normalized.equals("paper")
-            || normalized.equals("scissors")) {
-            return normalized;
-        }
-        return null;
-    }
-
-    /** Picks the computer's move, then says who won the round. */
-    private void playRound(String playerMove) {
-        String[] moves = {"rock", "paper", "scissors"};
-        String cpuMove = moves[random.nextInt(moves.length)];
-
-        Terminal.print("you chose " + playerMove + ".", 15, standardSize, Color.WHITE);
-        Terminal.print(SaveState.cpuName + " chose " + cpuMove + ".", 15, standardSize, Color.WHITE);
-
-        if (playerMove.equals(cpuMove)) {
-            Terminal.print("it's a tie!", 15, standardSize, Color.CYAN);
-        } else if (beats(playerMove, cpuMove)) {
-            Terminal.print("you win! :D", 20, standardSize, Color.GREEN);
-        } else {
-            Terminal.print("I win this one!", 20, standardSize, Color.RED);
+            case "shackOuter":
+                goToDecrepitShackOuter();
+                break;
+            case "shackInner":
+                goToDecrepitShackInner();
+                break;
+            case "house":
+                goToHouse();
+                break;
+            default:
+                // Unknown checkpoint, so start the CYA over from the beginning.
+                SaveState.CYALocation = null;
+                playCYA();
+                break;
         }
     }
 
-    /** Rock beats scissors, paper beats rock, scissors beat paper. */
-    private static boolean beats(String move, String other) {
-        return (move.equals("rock") && other.equals("scissors"))
-            || (move.equals("paper") && other.equals("rock"))
-            || (move.equals("scissors") && other.equals("paper"));
-    }
-
-
-
-    /** Wrong letters a player may guess before the round is lost. */
-    private static final int HANGMAN_MISSES = 6;
-
-    /** Used when the random-word service cannot be reached. */
-    private static final List<String> HANGMAN_FALLBACK_WORDS = List.of(
-        "APPLE", "ANCHOR", "BASKET", "BEACON", "BICYCLE", "BLANKET",
-        "BRIDGE", "BUTTER", "CACTUS", "CAMERA", "CANDLE", "CASTLE",
-        "CHERRY", "CIRCLE", "CLOUD", "COFFEE", "COMET", "CRICKET",
-        "DOLPHIN", "DRAGON", "DREAM", "EAGLE", "ENGINE", "FALCON",
-        "FEATHER", "FOREST", "GARDEN", "GUITAR", "HAMMER", "HARBOR",
-        "HELMET", "ISLAND", "JACKET", "JUNGLE", "KETTLE", "KITTEN",
-        "LADDER", "LANTERN", "LEMON", "MAGNET", "MARBLE", "MEADOW",
-        "MONKEY", "MOUNTAIN", "NOTEBOOK", "OCEAN", "ORANGE", "PANDA",
-        "PEPPER", "PIANO", "PILLOW", "PLANET", "POCKET", "PUZZLE",
-        "RABBIT", "RAINBOW", "ROCKET", "SADDLE", "SCHOOL", "SHADOW",
-        "SILVER", "SNOW", "SPIDER", "SPRING", "SUNSET", "TIGER",
-        "TUNNEL", "TURTLE", "VALLEY", "WAGON", "WINDOW", "WINTER",
-        "YELLOW", "ZEBRA"
-    );
-
-    /** Returns one word as a JSON array, for example ["example"]. */
-    private static final String WORD_API = "https://random-word-api.herokuapp.com/word";
-
-    /** How many requests to make before using the offline list. */
-    private static final int WORD_ATTEMPTS = 2;
-
-    /** Short timeout so a bad connection reaches the retry quickly. */
-    private static final Duration WORD_TIMEOUT = Duration.ofSeconds(3);
-
-    /** Brief pause before the single retry. */
-    private static final long WORD_RETRY_DELAY_MS = 300L;
-
-    private static final HttpClient WORD_CLIENT = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(2))
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build();
-
-    /**
-     * Plays Hangman until the player cancels. Each win or loss is followed by
-     * a choice between a fresh word and leaving, so there is no fixed number
-     * of rounds.
-     */
-    private void playHangman() throws InterruptedException {
-        boolean keepPlaying = true;
-        Terminal.blankLine();
-Terminal.print("-----------------", 1, standardSize, Color.WHITE);
-        while (running && keepPlaying) {
-            keepPlaying = playHangmanRound(getHangmanWord());
-            if (keepPlaying) {
-                keepPlaying = askForHangmanReplay();
-            }
-        }
-
-        Terminal.print("good game :)", 20, 15, Color.GREEN);
-        Terminal.blankLine();
-    }
-
-    /** Returns false if the player stops during the round. */
-    private boolean playHangmanRound(String word) throws InterruptedException {
-        Set<Character> guessed = new TreeSet<>();
-        Set<Character> missed = new TreeSet<>();
-
-        Terminal.print("the word has " + word.length() + " letters.",
-            15, standardSize, Color.WHITE);
-        Terminal.print(hangmanMask(word, guessed), 1, 20, Color.CYAN);
-        Terminal.print("you get " + HANGMAN_MISSES + " wrong guesses.",
-            15, standardSize, Color.WHITE);
-
-        while (running) {
-            Terminal.print("guess a letter, or type CANCEL to stop playing.",
-                15, standardSize, Color.WHITE);
-
-            String input = ask();
-            if (input.equalsIgnoreCase("cancel") || isBackCommand(input)
-                || input.equalsIgnoreCase("done")) {
-                return false;
-            }
-
-            if (input.length() != 1 || !Character.isLetter(input.charAt(0))) {
-                Terminal.print("please guess a single letter.", 15, standardSize, Color.RED);
-                continue;
-            }
-
-            char guess = Character.toUpperCase(input.charAt(0));
-            if (guessed.contains(guess)) {
-                Terminal.print("you already tried " + guess + ".", 15, standardSize, Color.RED);
-                continue;
-            }
-            guessed.add(guess);
-
-            if (word.indexOf(guess) >= 0) {
-                Terminal.print("yes! " + guess + " is in the word.", 15, standardSize, Color.GREEN);
-            } else {
-                missed.add(guess);
-                Terminal.print("nope. " + guess + " is not in the word.", 15, standardSize, Color.RED);
-            }
-
-            Terminal.print(hangmanMask(word, guessed), 1, 20, Color.CYAN);
-            Terminal.print("wrong: " + formatLetters(missed) + "   guesses left: "
-                + (HANGMAN_MISSES - missed.size()), 15, standardSize,
-                missed.size() >= HANGMAN_MISSES - 1 ? Color.RED : Color.WHITE);
-
-            if (hangmanSolved(word, guessed)) {
-                Terminal.print("you got it! the word was " + word + ".",
-                    20, standardSize, Color.GREEN);
-                return true;
-            }
-            if (missed.size() >= HANGMAN_MISSES) {
-                Terminal.print("out of guesses. the word was " + word + ".",
-                    20, standardSize, Color.RED);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** Asks for a new word or a way out, after one round has ended. */
-    private boolean askForHangmanReplay() throws InterruptedException {
-        Terminal.print("type NEW for a new word, or CANCEL to stop playing.",
-            15, standardSize, Color.WHITE);
-
-        while (running) {
-            String input = ask();
-            if (input.equalsIgnoreCase("new")) {
-                return true;
-            }
-            if (input.equalsIgnoreCase("cancel") || isBackCommand(input)
-                || input.equalsIgnoreCase("done")) {
-                return false;
-            }
-            Terminal.print("please type NEW or CANCEL.", 15, standardSize, Color.RED);
-        }
-
-        return false;
-    }
-
-    /**
-     * Fetches a random word from the word service and strips it down to the
-     * letters the player can guess. If the service is unreachable or returns
-     * nothing usable, a word from the local list keeps the game playable
-     * offline.
-     */
-    private String getHangmanWord() {
-        String raw = fetchRandomWord();
-        if (raw == null) {
-            return randomFallbackWord();
-        }
-
-        StringBuilder word = new StringBuilder();
-        for (int i = 0; i < raw.length(); i++) {
-            char c = Character.toUpperCase(raw.charAt(i));
-            if (c >= 'A' && c <= 'Z') {
-                word.append(c);
-            }
-        }
-        return word.length() == 0 ? randomFallbackWord() : word.toString();
-    }
-
-    /** Picks one of the built-in words when the online service is unavailable. */
-    private String randomFallbackWord() {
-        return HANGMAN_FALLBACK_WORDS.get(random.nextInt(HANGMAN_FALLBACK_WORDS.size()));
-    }
-
-    /** Tries the API a couple of times, then returns null to use the fallback. */
-    private static String fetchRandomWord() {
-        for (int attempt = 1; attempt <= WORD_ATTEMPTS; attempt++) {
-            try {
-                String word = requestRandomWord();
-                if (word != null) {
-                    return word;
-                }
-                if (attempt < WORD_ATTEMPTS) {
-                    Thread.sleep(WORD_RETRY_DELAY_MS);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return null;
-            }
-        }
-        return null;
-    }
-
-    /** Makes one request; returns its first word, or null on failure. */
-    private static String requestRandomWord() throws InterruptedException {
-        try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(WORD_API))
-                .timeout(WORD_TIMEOUT)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
-            HttpResponse<String> response = WORD_CLIENT.send(
-                request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) {
-                Log.warn("Random word service returned HTTP "
-                    + response.statusCode() + ".");
-                return null;
-            }
-            return parseWord(response.body());
-        } catch (IOException | IllegalArgumentException e) {
-            Log.warn("Could not fetch a Hangman word", e);
-            return null;
-        }
-    }
-
-    /** Pulls the first string out of the API's JSON array; null for anything else. */
-    private static String parseWord(String body) {
-        if (body == null) {
-            return null;
-        }
-        String trimmed = body.trim();
-        if (!trimmed.startsWith("[") || trimmed.length() < 3) {
-            return null;
-        }
-
-        int start = trimmed.indexOf('"');
-        int end = start < 0 ? -1 : trimmed.indexOf('"', start + 1);
-        return end > start + 1 ? trimmed.substring(start + 1, end) : null;
-    }
-
-    /** Spaces the word out so every guess reveals all of its copies at once. */
-    private static String hangmanMask(String word, Set<Character> guessed) {
-        StringBuilder mask = new StringBuilder();
-        for (int i = 0; i < word.length(); i++) {
-            if (i > 0) {
-                mask.append(' ');
-            }
-            char c = word.charAt(i);
-            mask.append(guessed.contains(c) ? c : '_');
-        }
-        return mask.toString();
-    }
-
-    private static boolean hangmanSolved(String word, Set<Character> guessed) {
-        for (int i = 0; i < word.length(); i++) {
-            if (!guessed.contains(word.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static String formatLetters(Set<Character> letters) {
-        if (letters.isEmpty()) {
-            return "-";
-        }
-        StringBuilder text = new StringBuilder();
-        for (char letter : letters) {
-            if (text.length() > 0) {
-                text.append(' ');
-            }
-            text.append(letter);
-        }
-        return text.toString();
-    }
-
-    private boolean playDungeonCrawler() throws InterruptedException
+    private void goToCemetary() throws InterruptedException
     {
-        Terminal.print("Loading Dungeon Crawler..", 20, standardSize, Color.WHITE);
-        pause(5000);
-        Terminal.print("Choose your mode:", 20, standardSize, Color.WHITE);
-        Terminal.blankLine();
-        Terminal.print("[1] Campaign Mode", 20, standardSize, Color.WHITE);
-        Terminal.print("[2] Endless Mode", 20, standardSize, Color.WHITE);
+        Terminal.print("cemetary gameplay", 15, standardSize, Color.RED);
+        SaveState.CYALocation = "cemetary";
+        SaveState.save();
+    }
 
-        while (running) {
-            String choice = ask();
+    private void goToDecrepitShackOuter() throws InterruptedException
+    {
+        Terminal.print("Outer shack gameplay", 15, standardSize, Color.RED);
+        SaveState.CYALocation = "shackOuter";
+        SaveState.save();
+    }
 
-            if (choice.equalsIgnoreCase("1")
-                || choice.equalsIgnoreCase("campaign")
-                || choice.equalsIgnoreCase("campaign mode")) {
-                playCampaignMode();
-                return true;
-            }
+    private void goToDecrepitShackInner() throws InterruptedException
+    {
+        Terminal.print("Inner Shack gameplay", 15, standardSize, Color.RED);
+        SaveState.CYALocation = "shackInner";
+        SaveState.save();
+    }
 
-            if (choice.equalsIgnoreCase("2")
-                || choice.equalsIgnoreCase("endless")
-                || choice.equalsIgnoreCase("endless mode")) {
-                playEndlessMode();
-                return true;
-            }
+    private void goToHouse() throws InterruptedException
+    {
+        Terminal.print("house (no not the doctor from the TV show) gameplay", 15, standardSize, Color.RED);
+        SaveState.CYALocation = "house";
+        SaveState.save();
+    }
 
-            Terminal.print("please choose 1 (Campaign) or 2 (Endless).",
-                20, standardSize, Color.RED);
+    /*
+    * asks the user to input what the purpose of their quest is, will probably use later or maybe its just spooky world building I'll use it if I have enough time
+    */
+    private String askForPurpose() throws InterruptedException {
+        while (true){
+            String purpose = ask();
+        if (purpose.equalsIgnoreCase("1") || purpose.equalsIgnoreCase("answers"))
+        {
+            purpose = "answers";
+            return purpose;
+        } else if(purpose.equalsIgnoreCase("2") || purpose.equalsIgnoreCase("peace"))
+        {
+            purpose = "peace";
+            return purpose;
+        } else if(purpose.equalsIgnoreCase("3") || purpose.equalsIgnoreCase("vengeance"))
+        {
+            purpose = "vengeance";
+            return purpose;
+        } else
+        {
+            Terminal.print("input a valid purpose.", 20, standardSize, Color.RED);
         }
-        return false;
     }
-
-    /** Starts Campaign Mode. The mode itself is still a placeholder. */
-    private void playCampaignMode() throws InterruptedException {
-        Terminal.print("Campaign Mode is not implemented yet.",
-            20, standardSize, Color.CYAN);
-        Terminal.blankLine();
-    }
-
-    /** Starts a run of the endless dungeon. */
-    private void playEndlessMode() throws InterruptedException {
-        EndlessMode.play(this::ask);
     }
 
     /**
-     * Asks for a favorite color until the name matches the A-F color list, so
-     * the answer is always a real color the rest of the game can draw with.
-     */
-    private String askForColor() throws InterruptedException {
-        while (true) {
-            String input = ask();
-            if (NamedColors.contains(input)) {
-                return NamedColors.canonicalName(input);
-            }
-            Terminal.print("I don't know that one. try a color name, like red, green or purple.",
-                15, standardSize, Color.RED);
-        }
-    }
-
-    /**
-     * Keeps asking until the answer is usable. The original compared strings
-     * with {@code ==}, so every answer including an empty one was accepted.
+     * Keeps asking for a name until the answer is usable. will not take names under a certain length and the name cannot be Eris for story reasons
      */
     private String askForName(int minimumLength) throws InterruptedException {
         while (true) {
@@ -1093,6 +834,7 @@ Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         while (running) {
             showSettingValues();
             Terminal.print("change a value with: set <name> <value>", 15, standardSize, Color.WHITE);
+            Terminal.print("type RESET SAVE to erase your save state.", 15, standardSize, Color.WHITE);
             Terminal.print("type BACK to go to the main menu.", 15, standardSize, Color.RED);
 
             String input = ask();
@@ -1105,12 +847,31 @@ Terminal.print("-----------------", 1, standardSize, Color.WHITE);
                 return;
             }
 
-            if (normalized.startsWith("set ")) {
+            if (normalized.equals("reset save") || normalized.equals("reset")) {
+                resetSaveState();
+            } else if (normalized.startsWith("set ")) {
                 applySetting(input.substring(4).trim());
             } else {
                 Terminal.print("unrecognised command", 20, standardSize, Color.RED);
             }
         }
+    }
+
+    /** Erases the profile and story progress, after the player confirms. */
+    private void resetSaveState() throws InterruptedException {
+        Terminal.print("this erases your profile, purpose and story progress. type YES to confirm, or NO to cancel.",
+            20, standardSize, Color.RED);
+        String answer = Terminal.prompt().trim();
+
+        if (!answer.equalsIgnoreCase("yes") && !answer.equalsIgnoreCase("y")) {
+            Terminal.print("save state kept.", 20, standardSize, Color.GREEN);
+            return;
+        }
+
+        SaveState.reset();
+        Terminal.print("save state reset. the next game starts from the beginning.",
+            20, standardSize, Color.GREEN);
+        Terminal.blankLine();
     }
 
     private void showSettingValues() {

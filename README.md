@@ -65,7 +65,8 @@ The packaged Windows app stores it in `%APPDATA%\DREAM`:
 
 Change a value with `set <name> <value>`, for example `set textSpeed 2.0` or
 `set textScale 1.4`. Changes apply immediately, including to text already on
-screen.
+screen. `reset save` erases your profile, purpose and story progress after a
+confirmation, so the next game starts from the beginning.
 
 The screen is locked to 4:3. However the window is shaped, the picture fills
 the largest centred 4:3 rectangle and the leftover space stays black, so the

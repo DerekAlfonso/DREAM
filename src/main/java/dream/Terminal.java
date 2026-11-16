@@ -212,9 +212,11 @@ public final class Terminal {
         SwingUtilities.invokeLater(() -> enqueue(safeText, speed, fontSize, color));
     }
 
+
+
     /** Convenience for a blank spacer line. */
     public static void blankLine() {
-        print(" ", 1, 15, Color.WHITE);
+        print(" ", 1, Game.getStandardSize(), Color.WHITE);
     }
 
     /**
