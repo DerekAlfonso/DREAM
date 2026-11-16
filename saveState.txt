@@ -1,5 +1,9 @@
 #D.R.E.A.M save state
-#Thu Nov 12 00:25:09 CST 2026
-cpuName=
+#Mon Nov 16 04:15:09 CST 2026
+CYALocation=
+cpuName=REM
 favoriteColor=
-username=
+purpose=
+saveVersion=2
+stage=
+username=Aesfo

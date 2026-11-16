@@ -15,20 +15,37 @@ public final class SaveState {
 
     private static final Path FILE = UserData.file("saveState.txt");
 
+    /**
+     * Written with every save. Bump this when a field changes meaning, and add
+     * the migration to {@link #load()}; older saves must keep loading.
+     */
+    public static final int SAVE_VERSION = 2;
+
     public static String username = null;
     public static String cpuName = null;
     public static String favoriteColor = null;
     public static String purpose = null;
-    public static String CYALocation = null;
+
+    /** The last CYA place reached, or null if the CYA has not reached one yet. */
+    public static CyaLocation cyaLocation = null;
 
     /** How far the main story has got. Null means a new game. */
     public static String stage = null;
 
-    /** Profile done, but the minigames are still in progress. */
-    public static final String STAGE_MINIGAMES = "minigames";
+    /** Profile done, but rock-paper-scissors is still in progress. */
+    public static final String STAGE_RPS = "rps";
+
+    /** Rock-paper-scissors done, hangman in progress. */
+    public static final String STAGE_HANGMAN = "hangman";
+
+    /** Hangman done, the dungeon crawler in progress. */
+    public static final String STAGE_DUNGEON = "dungeon";
 
     /** Minigames done; the CYA is in progress or waiting to start. */
     public static final String STAGE_CYA = "cya";
+
+    /** What version 1 called the whole minigame block. */
+    private static final String LEGACY_STAGE_MINIGAMES = "minigames";
 
     private SaveState() { }
 
@@ -44,12 +61,20 @@ public final class SaveState {
             return;
         }
 
+        int version = readInt(props, "saveVersion", 1);
+
         username = emptyToNull(props.getProperty("username"));
         cpuName = emptyToNull(props.getProperty("cpuName"));
         favoriteColor = emptyToNull(props.getProperty("favoriteColor"));
         purpose = emptyToNull(props.getProperty("purpose"));
-        CYALocation = emptyToNull(props.getProperty("CYALocation"));
-        stage = emptyToNull(props.getProperty("stage"));
+        cyaLocation = CyaLocation.fromId(props.getProperty("CYALocation"));
+
+        String loadedStage = emptyToNull(props.getProperty("stage"));
+        if (version < 2 && LEGACY_STAGE_MINIGAMES.equals(loadedStage)) {
+            loadedStage = STAGE_RPS;
+        }
+        stage = normalizeStage(loadedStage);
+
         if (username != null) {
             Log.info("Loaded save state for " + username);
         }
@@ -57,11 +82,12 @@ public final class SaveState {
 
     public static void save() {
         Properties props = new Properties();
+        props.setProperty("saveVersion", String.valueOf(SAVE_VERSION));
         props.setProperty("username", nullToEmpty(username));
         props.setProperty("cpuName", nullToEmpty(cpuName));
         props.setProperty("favoriteColor", nullToEmpty(favoriteColor));
         props.setProperty("purpose", nullToEmpty(purpose));
-        props.setProperty("CYALocation", nullToEmpty(CYALocation));
+        props.setProperty("CYALocation", cyaLocation == null ? "" : cyaLocation.id);
         props.setProperty("stage", nullToEmpty(stage));
 
         try {
@@ -86,9 +112,33 @@ public final class SaveState {
         cpuName = null;
         favoriteColor = null;
         purpose = null;
-        CYALocation = null;
+        cyaLocation = null;
         stage = null;
         save();
+    }
+
+    /** Keeps only known stages, so a hand-edited save cannot skip the story. */
+    private static String normalizeStage(String value) {
+        if (value == null) {
+            return null;
+        }
+        switch (value) {
+            case STAGE_RPS:
+            case STAGE_HANGMAN:
+            case STAGE_DUNGEON:
+            case STAGE_CYA:
+                return value;
+            default:
+                return null;
+        }
+    }
+
+    private static int readInt(Properties props, String key, int fallback) {
+        try {
+            return Integer.parseInt(props.getProperty(key, String.valueOf(fallback)));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private static String emptyToNull(String value) {
