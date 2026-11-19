@@ -20,9 +20,6 @@ public final class Settings {
     public static double textSpeed = 1.0;
     public static boolean typingSounds = true;
 
-    /** Skips the fake loading bar and scene load waits when true. */
-    public static boolean fastBoot = false;
-
     /**
      * Extra text magnification on top of the automatic scaling the terminal
      * derives from the screen height. 1.0 leaves the automatic size alone.
@@ -56,8 +53,6 @@ public final class Settings {
         textScale = clampScale(readDouble(props, "textScale", textScale));
         typingSounds = Boolean.parseBoolean(
             props.getProperty("typingSounds", String.valueOf(typingSounds)));
-        fastBoot = Boolean.parseBoolean(
-            props.getProperty("fastBoot", String.valueOf(fastBoot)));
 
         CrtShader.Preset loadedCrt = parseCrt(props.getProperty("crt", crtName(crt)));
         crt = loadedCrt == null ? CrtShader.Preset.OFF : loadedCrt;
@@ -73,7 +68,6 @@ public final class Settings {
         props.setProperty("textSpeed", String.valueOf(textSpeed));
         props.setProperty("textScale", String.valueOf(textScale));
         props.setProperty("typingSounds", String.valueOf(typingSounds));
-        props.setProperty("fastBoot", String.valueOf(fastBoot));
         props.setProperty("crt", crtName(crt));
         props.setProperty("crtQuality", String.valueOf(crtQuality));
 
@@ -104,10 +98,6 @@ public final class Settings {
 
     public static double clampScale(double value) {
         return Math.max(0.5, Math.min(3.0, value));
-    }
-
-    public static double clampSpeed(double value) {
-        return Math.max(0.1, Math.min(5.0, value));
     }
 
     public static int clampQuality(int value) {

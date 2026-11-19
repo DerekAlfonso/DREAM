@@ -25,11 +25,6 @@ import java.lang.reflect.InvocationTargetException;
  * it without those dependencies
  *
  * Run with {@code --debug} for verbose logging.
- *
- * <p>Development shortcuts: {@code --new} starts the story from the beginning,
- * {@code --from-save} continues immediately, {@code --skip-intro} starts at the
- * CYA, and {@code --scene=cemetary|shackOuter|shackInner|house} resumes at one
- * of its checkpoints.
  */
 public final class Main {
 
@@ -46,18 +41,6 @@ public final class Main {
     /** Set by --doom: jump straight to the easter egg instead of the menu. */
     static boolean startInDoom = false;
 
-    /** Set by --new: clear the save before the story starts. */
-    static boolean startNew = false;
-
-    /** Set by --from-save, --skip-intro or --scene: run the story without the menu. */
-    static boolean startStory = false;
-
-    /** Set by --skip-intro: start at the CYA with the minigames already done. */
-    static boolean skipIntro = false;
-
-    /** Set by --scene=<id>: resume the CYA at a checkpoint. */
-    static CyaLocation startScene = null;
-
     private Main() { }
 
     public static void main(String[] args) {
@@ -69,24 +52,6 @@ public final class Main {
                 // sitting through the loading bar every time you want to poke
                 // at the renderer.
                 startInDoom = true;
-            } else if ("--new".equalsIgnoreCase(arg)) {
-                startStory = true;
-                startNew = true;
-            } else if ("--from-save".equalsIgnoreCase(arg)) {
-                startStory = true;
-            } else if ("--skip-intro".equalsIgnoreCase(arg)) {
-                startStory = true;
-                skipIntro = true;
-            } else if (arg.toLowerCase().startsWith("--scene=")) {
-                String id = arg.substring("--scene=".length());
-                startScene = CyaLocation.fromId(id);
-                if (startScene == null) {
-                    Log.warn("Unknown --scene value '" + id
-                        + "'. Use cemetary, shackOuter, shackInner or house.");
-                } else {
-                    startStory = true;
-                    skipIntro = false;
-                }
             }
         }
 

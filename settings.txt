@@ -1,8 +1,7 @@
 #D.R.E.A.M settings
-#Wed Nov 18 22:33:09 CST 2026
+#Wed Nov 11 23:31:01 CST 2026
 crt=full
-crtQuality=2
-fastBoot=false
+crtQuality=3
 musicVolume=0.5
 sfxVolume=0.15
 textScale=1.5

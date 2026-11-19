@@ -2,3 +2,4 @@ target/
 *.class
 .env
 saveState.txt
+settings.txt
