@@ -1,5 +1,8 @@
 package dream;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * The places the CYA can save at. The id is the value stored in saveState.txt,
  * so changing one would orphan existing saves; rename through a migration
@@ -7,15 +10,32 @@ package dream;
  */
 enum CyaLocation {
 
-    CEMETARY("cemetary"),
-    SHACK_OUTER("shackOuter"),
-    SHACK_INNER("shackInner"),
-    HOUSE("house");
+    CEMETARY("cemetary", "The Cemetary", "cemetery", "graveyard"),
+    SHACK_OUTER("shackOuter", "The Outer Decrepit Shack",
+        "outer", "outer shack", "outer decrepit shack"),
+    SHACK_INNER("shackInner", "The Inner Decrepit Shack",
+        "inner", "inner shack", "inner decrepit shack"),
+    HOUSE("house", "The House"); 
+
+    /**
+     * Every area reachable directly from each area. The inner shack is
+     * deliberately only reachable from the outer shack.
+     */
+    private static final Map<CyaLocation, List<CyaLocation>> LINKS = Map.of(
+        CEMETARY, List.of(SHACK_OUTER, HOUSE),
+        SHACK_OUTER, List.of(CEMETARY, SHACK_INNER, HOUSE),
+        SHACK_INNER, List.of(SHACK_OUTER),
+        HOUSE, List.of(CEMETARY, SHACK_OUTER)
+    );
 
     final String id;
+    final String displayName;
+    private final List<String> aliases;
 
-    CyaLocation(String id) {
+    CyaLocation(String id, String displayName, String... aliases) {
         this.id = id;
+        this.displayName = displayName;
+        this.aliases = List.of(aliases);
     }
 
     /** Returns the matching location, or null for blank or unknown ids. */
@@ -29,5 +49,47 @@ enum CyaLocation {
             }
         }
         return null;
+    }
+
+    /** Matches a player-typed area name against ids, display names and aliases. */
+    static CyaLocation fromName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String query = stripLeadingThe(name);
+        if (query.isEmpty()) {
+            return null;
+        }
+        for (CyaLocation location : values()) {
+            if (location.matches(query)) {
+                return location;
+            }
+        }
+        return null;
+    }
+
+    /** The areas reachable directly from this one. */
+    static List<CyaLocation> neighbours(CyaLocation location) {
+        return LINKS.getOrDefault(location, List.of());
+    }
+
+    private boolean matches(String query) {
+        if (id.equalsIgnoreCase(query) || displayName.equalsIgnoreCase(query)) {
+            return true;
+        }
+        for (String alias : aliases) {
+            if (alias.equalsIgnoreCase(query)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String stripLeadingThe(String name) {
+        String query = name.trim();
+        if (query.toLowerCase().startsWith("the ")) {
+            query = query.substring(4).trim();
+        }
+        return query;
     }
 }

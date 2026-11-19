@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * What the AI remembers about the player between runs. Written to saveState.txt,
@@ -25,6 +27,15 @@ public final class SaveState {
     public static String cpuName = null;
     public static String favoriteColor = null;
     public static String purpose = null;
+
+    /** True once the player has spoken to the man at the cemetary. */
+    public static boolean spokenToMysteriousMan = false;
+
+    /**
+     * The inventory: ids of the objects the player has taken, in the order
+     * they were picked up. Saved with the rest of the run.
+     */
+    public static final Set<String> takenObjects = new LinkedHashSet<>();
 
     /** The last CYA place reached, or null if the CYA has not reached one yet. */
     public static CyaLocation cyaLocation = null;
@@ -68,6 +79,15 @@ public final class SaveState {
         favoriteColor = emptyToNull(props.getProperty("favoriteColor"));
         purpose = emptyToNull(props.getProperty("purpose"));
         cyaLocation = CyaLocation.fromId(props.getProperty("CYALocation"));
+        spokenToMysteriousMan = Boolean.parseBoolean(
+            props.getProperty("spokenToMysteriousMan", "false"));
+        takenObjects.clear();
+        String taken = props.getProperty("takenObjects", "");
+        for (String id : taken.split(",")) {
+            if (!id.trim().isEmpty()) {
+                takenObjects.add(id.trim());
+            }
+        }
 
         String loadedStage = emptyToNull(props.getProperty("stage"));
         if (version < 2 && LEGACY_STAGE_MINIGAMES.equals(loadedStage)) {
@@ -88,6 +108,8 @@ public final class SaveState {
         props.setProperty("favoriteColor", nullToEmpty(favoriteColor));
         props.setProperty("purpose", nullToEmpty(purpose));
         props.setProperty("CYALocation", cyaLocation == null ? "" : cyaLocation.id);
+        props.setProperty("spokenToMysteriousMan", String.valueOf(spokenToMysteriousMan));
+        props.setProperty("takenObjects", String.join(",", takenObjects));
         props.setProperty("stage", nullToEmpty(stage));
 
         try {
@@ -107,12 +129,25 @@ public final class SaveState {
         return username != null && cpuName != null;
     }
 
+    /** True if this save's inventory contains the object with this id. */
+    public static boolean hasItem(String id) {
+        return takenObjects.contains(id);
+    }
+
+    /** Adds an object id to this save's inventory and writes it immediately. */
+    public static void addItem(String id) {
+        takenObjects.add(id);
+        save();
+    }
+
     public static void reset() {
         username = null;
         cpuName = null;
         favoriteColor = null;
         purpose = null;
         cyaLocation = null;
+        spokenToMysteriousMan = false;
+        takenObjects.clear();
         stage = null;
         save();
     }

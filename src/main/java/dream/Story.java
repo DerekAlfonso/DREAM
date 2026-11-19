@@ -147,7 +147,7 @@ final class Story {
 
         Terminal.print("you were looking for... " + SaveState.purpose, 15, Game.standardSize, Color.WHITE);
         Terminal.print("as you wade through the forest you happen upon an old cemetary", 15, Game.standardSize, Color.WHITE);
-        goToCemetary();
+        explore(CyaLocation.CEMETARY);
     }
 
     /** Picks the CYA back up at the last place it saved, or starts it from the top. */
@@ -157,43 +157,37 @@ final class Story {
         }
 
         CyaLocation location = SaveState.cyaLocation;
-        if (location == null) {
-            return;
+        if (location != null) {
+            explore(location);
         }
+    }
+
+    /**
+     * Walks from area to area until the player leaves. Checkpoints are written
+     * on entry, so quitting inside any area resumes exactly there.
+     */
+    private void explore(CyaLocation start) throws InterruptedException {
+        CyaLocation location = start;
+        while (location != null) {
+            checkpoint(location);
+            location = playArea(location);
+        }
+    }
+
+    /** Plays one area and returns the area chosen with GO, if any. */
+    private CyaLocation playArea(CyaLocation location) throws InterruptedException {
         switch (location) {
             case CEMETARY:
-                goToCemetary();
-                break;
+                return Cemetery.play(game::ask);
             case SHACK_OUTER:
-                goToDecrepitShackOuter();
-                break;
+                return ShackOuter.play(game::ask);
             case SHACK_INNER:
-                goToDecrepitShackInner();
-                break;
+                return ShackInner.play(game::ask);
             case HOUSE:
-                goToHouse();
-                break;
+                return House.play(game::ask);
+            default:
+                return null;
         }
-    }
-
-    private void goToCemetary() throws InterruptedException {
-        Terminal.print("cemetary gameplay", 15, Game.standardSize, Color.RED);
-        checkpoint(CyaLocation.CEMETARY);
-    }
-
-    private void goToDecrepitShackOuter() throws InterruptedException {
-        Terminal.print("Outer shack gameplay", 15, Game.standardSize, Color.RED);
-        checkpoint(CyaLocation.SHACK_OUTER);
-    }
-
-    private void goToDecrepitShackInner() throws InterruptedException {
-        Terminal.print("Inner Shack gameplay", 15, Game.standardSize, Color.RED);
-        checkpoint(CyaLocation.SHACK_INNER);
-    }
-
-    private void goToHouse() throws InterruptedException {
-        Terminal.print("house (no not the doctor from the TV show) gameplay", 15, Game.standardSize, Color.RED);
-        checkpoint(CyaLocation.HOUSE);
     }
 
     /** Records one CYA checkpoint in a single place, so saves cannot be missed. */
