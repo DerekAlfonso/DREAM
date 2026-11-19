@@ -89,6 +89,21 @@ public final class Terminal {
     private static double speedMultiplier = 1.0;
     private static boolean typingSounds = true;
 
+    /** Set when Enter asks the current wait or print to finish early. */
+    private static volatile boolean skipRequested = false;
+
+    /** Caret position inside currentInput. */
+    private static int inputCursor = 0;
+
+    /** Previously submitted answers, oldest first, recalled with the arrows. */
+    private static final List<String> inputHistory = new ArrayList<>();
+    private static int historyIndex = 0;
+    private static String inputDraft = "";
+    private static final int MAX_HISTORY = 50;
+
+    /** Drawn at the caret while the player is typing. */
+    private static final String CARET = "|";
+
     private Terminal() { }
 
     private static final class MessageRequest {
@@ -133,6 +148,26 @@ public final class Terminal {
 
     public static boolean isTypingSounds() {
         return typingSounds;
+    }
+
+    /**
+     * Sleeps on the story thread, but returns early when the player presses
+     * Enter. Story beats and faked loads both use this.
+     */
+    public static void pause(long millis) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + Math.max(0L, millis);
+        while (true) {
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0) {
+                skipRequested = false;
+                return;
+            }
+            if (skipRequested) {
+                skipRequested = false;
+                return;
+            }
+            Thread.sleep(Math.min(25L, remaining));
+        }
     }
 
     // ---------------------------------------------------------------- layout
@@ -212,9 +247,11 @@ public final class Terminal {
         SwingUtilities.invokeLater(() -> enqueue(safeText, speed, fontSize, color));
     }
 
+
+
     /** Convenience for a blank spacer line. */
     public static void blankLine() {
-        print(" ", 1, 15, Color.WHITE);
+        print(" ", 1, Game.getStandardSize(), Color.WHITE);
     }
 
     /**
@@ -535,6 +572,10 @@ public final class Terminal {
     private static void beginInput(BlockingQueue<String> result) {
         awaitingInput = true;
         currentInput = "";
+        inputCursor = 0;
+        historyIndex = inputHistory.size();
+        inputDraft = "";
+        skipRequested = false;
         inputResult = result;
 
         for (TextData line : activeLines) {
@@ -542,7 +583,7 @@ public final class Terminal {
         }
 
         Font font = baseFont.deriveFont(Font.PLAIN, (float) scaledFontSize(15));
-        inputLine = new TextData(promptSymbol, startX(), homeY(), 15, Color.GREEN, font);
+        inputLine = new TextData(promptSymbol + CARET, startX(), homeY(), 15, Color.GREEN, font);
         activeLines.add(inputLine);
         canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, inputLine);
         canvas.repaint();
@@ -554,22 +595,25 @@ public final class Terminal {
             return;
         }
         if (c >= 32 && c <= 126) {
-            currentInput += c;
-            inputLine.setText(promptSymbol + currentInput);
+            currentInput = currentInput.substring(0, inputCursor)
+                + c
+                + currentInput.substring(inputCursor);
+            inputCursor++;
             AudioManager.playTypingClick();
-            canvas.repaint();
+            refreshInputLine();
         }
     }
 
     /** Called from the key listener on the event thread. */
     public static void handleBackspace() {
-        if (!awaitingInput || inputLine == null || currentInput.isEmpty()) {
+        if (!awaitingInput || inputLine == null || inputCursor == 0) {
             return;
         }
-        currentInput = currentInput.substring(0, currentInput.length() - 1);
-        inputLine.setText(promptSymbol + currentInput);
-                    AudioManager.playTypingClick();
-        canvas.repaint();
+        currentInput = currentInput.substring(0, inputCursor - 1)
+            + currentInput.substring(inputCursor);
+        inputCursor--;
+        AudioManager.playTypingClick();
+        refreshInputLine();
     }
 
     /**
@@ -580,6 +624,7 @@ public final class Terminal {
     public static void handleEnter() {
         if (!awaitingInput) {
             // Nothing is being answered, so Enter means "hurry up".
+            skipRequested = true;
             skipTyping();
             return;
         }
@@ -589,15 +634,105 @@ public final class Terminal {
         awaitingInput = false;
 
         String submitted = currentInput;
+        if (inputLine != null) {
+            inputLine.setText(promptSymbol + submitted);
+        }
         inputLine = null;
         currentInput = "";
+        inputCursor = 0;
 
-                    AudioManager.playTypingClick();
+        if (inputHistory.isEmpty()
+            || !inputHistory.get(inputHistory.size() - 1).equals(submitted)) {
+            inputHistory.add(submitted);
+            if (inputHistory.size() > MAX_HISTORY) {
+                inputHistory.remove(0);
+            }
+        }
+        historyIndex = inputHistory.size();
+
+        AudioManager.playTypingClick();
 
         if (inputResult != null) {
             inputResult.offer(submitted);
             inputResult = null;
         }
+    }
+
+    /** Deletes the character under the caret. */
+    public static void handleDelete() {
+        if (!awaitingInput || inputLine == null
+            || inputCursor >= currentInput.length()) {
+            return;
+        }
+        currentInput = currentInput.substring(0, inputCursor)
+            + currentInput.substring(inputCursor + 1);
+        AudioManager.playTypingClick();
+        refreshInputLine();
+    }
+
+    /** Moves the caret by delta characters, clamped to the answer. */
+    public static void moveCursor(int delta) {
+        if (!awaitingInput || inputLine == null) {
+            return;
+        }
+        int next = Math.max(0, Math.min(currentInput.length(), inputCursor + delta));
+        if (next == inputCursor) {
+            return;
+        }
+        inputCursor = next;
+        refreshInputLine();
+    }
+
+    public static void moveCursorToStart() {
+        if (!awaitingInput || inputLine == null) {
+            return;
+        }
+        inputCursor = 0;
+        refreshInputLine();
+    }
+
+    public static void moveCursorToEnd() {
+        if (!awaitingInput || inputLine == null) {
+            return;
+        }
+        inputCursor = currentInput.length();
+        refreshInputLine();
+    }
+
+    /** direction -1 recalls older answers, +1 moves back towards the draft. */
+    public static void handleHistory(int direction) {
+        if (!awaitingInput || inputLine == null || inputHistory.isEmpty()) {
+            return;
+        }
+        int size = inputHistory.size();
+        if (direction < 0) {
+            if (historyIndex == size) {
+                inputDraft = currentInput;
+            }
+            if (historyIndex > 0) {
+                historyIndex--;
+            }
+        } else if (historyIndex < size) {
+            historyIndex++;
+        }
+        currentInput = historyIndex >= size
+            ? inputDraft
+            : inputHistory.get(historyIndex);
+        inputCursor = currentInput.length();
+        refreshInputLine();
+    }
+
+    /** Redraws the prompt with the caret in the right place. */
+    private static void refreshInputLine() {
+        if (inputLine == null) {
+            return;
+        }
+        int cursor = Math.max(0, Math.min(inputCursor, currentInput.length()));
+        inputLine.setText(promptSymbol
+            + currentInput.substring(0, cursor)
+            + CARET
+            + currentInput.substring(cursor));
+        canvas.repaint();
     }
 
     public static boolean isAwaitingInput() {
@@ -648,6 +783,14 @@ public final class Terminal {
         scrollOffset += clamped;
         canvas.scrollAllText(clamped);
         return true;
+    }
+
+    /** How far one PageUp/PageDown press moves the log. */
+    public static int pageStep() {
+        int height = canvas != null && canvas.getViewHeight() > 0
+            ? canvas.getViewHeight()
+            : 800;
+        return Math.max(1, (int) (height * 0.8));
     }
 
     /** Wipes the screen, for returning to the boot menu. */
