@@ -24,6 +24,45 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
             case KeyEvent.VK_BACK_SPACE:
                 Terminal.handleBackspace();
                 break;
+            case KeyEvent.VK_DELETE:
+                Terminal.handleDelete();
+                break;
+            case KeyEvent.VK_LEFT:
+                Terminal.moveCursor(-1);
+                break;
+            case KeyEvent.VK_RIGHT:
+                Terminal.moveCursor(1);
+                break;
+            case KeyEvent.VK_HOME:
+                if (Terminal.isAwaitingInput()) {
+                    Terminal.moveCursorToStart();
+                } else {
+                    scrollBy(Integer.MAX_VALUE);
+                }
+                break;
+            case KeyEvent.VK_END:
+                if (Terminal.isAwaitingInput()) {
+                    Terminal.moveCursorToEnd();
+                } else {
+                    scrollBy(Integer.MIN_VALUE);
+                }
+                break;
+            case KeyEvent.VK_UP:
+                Terminal.handleHistory(-1);
+                break;
+            case KeyEvent.VK_DOWN:
+                Terminal.handleHistory(1);
+                break;
+            case KeyEvent.VK_PAGE_UP:
+                if (!Terminal.isAwaitingInput()) {
+                    scrollBy(Terminal.pageStep());
+                }
+                break;
+            case KeyEvent.VK_PAGE_DOWN:
+                if (!Terminal.isAwaitingInput()) {
+                    scrollBy(-Terminal.pageStep());
+                }
+                break;
             case KeyEvent.VK_ENTER:
                 if (!enterHeld) {
                     enterHeld = true;
@@ -53,9 +92,14 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
-        int amount = -e.getWheelRotation() * SCROLL_SPEED;
-        // Only click when the view actually moved, so hitting the end of the
-        // log is silent rather than rattling.
+        scrollBy(-e.getWheelRotation() * SCROLL_SPEED);
+    }
+
+    /**
+     * Scrolls the log and clicks only when the view actually moved, so hitting
+     * the end is silent rather than rattling.
+     */
+    private static void scrollBy(int amount) {
         if (Terminal.scroll(amount)) {
             AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
         }

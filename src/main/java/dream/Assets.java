@@ -18,7 +18,7 @@ import java.util.Scanner;
  * Finds game files whether we are running from the packaged jar or straight out
  * of the source folder.
  *
- * <p>Every asset the game needs is embedded in the jar, so nothing is fetched
+ * Every asset the game needs is embedded in the jar, so nothing is fetched
  * over the network at runtime. The disk lookups below only exist so the game
  * still runs when launched from the source tree during development.
  */

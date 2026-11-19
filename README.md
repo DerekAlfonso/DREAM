@@ -20,6 +20,19 @@ java -jar target/dream.jar
 
 Requires a JDK 11 or newer. Add `--debug` for verbose logging.
 
+### Development shortcuts
+
+Run the jar with these arguments to skip the boot menu while working on the
+game:
+
+| Argument | Effect |
+| --- | --- |
+| `--new` | Clear the save and start the story from the beginning |
+| `--from-save` | Continue the saved story immediately |
+| `--skip-intro` | Start at the CYA with the minigames already done |
+| `--scene=cemetary` | Resume at a CYA checkpoint (`cemetary`, `shackOuter`, `shackInner`, `house`) |
+| `--doom` | Jump straight to doom.exe |
+
 Download builds from a successful **Desktop builds** GitHub Actions run. The
 Windows installer (`.exe`) and portable build (`.zip`) are separate direct
 downloads. Run the installer for Start menu and desktop shortcuts, or unzip the
@@ -41,8 +54,15 @@ it runs offline and can be copied anywhere on its own.
 | Input | Action |
 | --- | --- |
 | Type + `Enter` | Answer a prompt |
-| `Backspace` | Delete a character |
+| `Enter` while text types | Finish the current line, or skip a pause |
+| `←` / `→`, `Home` / `End` | Move the input caret |
+| `Up` / `Down` | Recall earlier answers |
+| `Delete` | Delete under the caret |
+| `Page Up` / `Page Down` | Scroll a page back or forward |
+| `Home` / `End` while not typing | Jump to the oldest or newest line |
 | Mouse wheel | Scroll back through the log |
+| `menu` during the story | Save and return to the boot menu |
+| `quit` / `exit` | Quit the game |
 
 At the boot menu, type `ProjectDream.iso`, `settings.bin` or `credits.txt`.
 `exit` quits. On the credits and settings screens, `back` returns to the menu.
@@ -60,12 +80,16 @@ The packaged Windows app stores it in `%APPDATA%\DREAM`:
 | `textSpeed` | 0.1 - 5.0 | Typing speed, higher is faster |
 | `textScale` | 0.5 - 3.0 | Text size, on top of automatic screen scaling |
 | `typingSounds` | true / false | Click as dialogue types itself out |
+| `fastBoot` | true / false | Skip the boot loading bar and scene load waits |
 | `crt` | off / light / full | Software CRT filter: scanlines, shadow mask, curved glass |
 | `crtQuality` | 1 - 3 | Filter resolution; 1 is sharpest, 2 and 3 are cheaper |
 
 Change a value with `set <name> <value>`, for example `set textSpeed 2.0` or
 `set textScale 1.4`. Changes apply immediately, including to text already on
-screen.
+screen. `reset save` erases your profile, purpose and story progress after a
+confirmation, so the next game starts from the beginning. `help` lists every
+setting and command; `sfx`, `music`, `speed`, `scale` and `sound` work in place
+of the full setting names.
 
 The screen is locked to 4:3. However the window is shaped, the picture fills
 the largest centred 4:3 rectangle and the leftover space stays black, so the
@@ -90,8 +114,11 @@ top of that rather than the whole story. The terminal keeps dialogue in a
 centred column about 85 characters wide so lines stay readable on an ultrawide
 display.
 
-Your name and the name you give the AI are saved to `saveState.txt` in the
-same location as the settings file.
+Your name, the name you give the AI, your favorite color, your purpose and your
+story checkpoint are saved to `saveState.txt` in the same location as the
+settings file. Reopening `ProjectDream.iso` resumes from the last checkpoint.
+Text already on screen types itself out; `Enter` finishes a line early and also
+cuts short the fake loads and story pauses.
 
 ## Project layout
 
@@ -101,12 +128,16 @@ pom.xml                          Maven build, produces target/dream.jar
 run.bat / run.sh                 Launchers
 src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
-  Game.java                      The story, on its own thread
+  Game.java                      Loop, input and boot menu, on its own thread
+  Story.java                     The ProjectDream story and CYA checkpoints
+  Minigames.java                 Rock-paper-scissors, hangman, dungeon menu
+  Screens.java                   Settings and credits screens
   Terminal.java                  Typing animation, word wrap, input, scrolling
   CurveCanvas.java               4:3 viewport, offscreen scene, barrel distortion
   CrtShader.java                 Software CRT filter: warp, scanlines, mask, bloom
   AudioManager.java              MP3 decoding and playback
   Assets.java                    Loads embedded files
+  CyaLocation.java               Named CYA checkpoint ids
   Settings.java / SaveState.java Persistence
   UserData.java                  Installed-app save location
   InputController.java           Keyboard and mouse wheel
