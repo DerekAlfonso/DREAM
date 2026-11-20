@@ -43,7 +43,6 @@ final class Scene {
      */
     CyaLocation play(Input input) throws InterruptedException {
         Terminal.print(title, 1, Game.standardSize + 4, Color.GRAY);
-        Terminal.blankLine();
         Terminal.print(description, 15, Game.standardSize, Color.WHITE);
         Terminal.print("type HELP for all commands, or LOOK to look around.",
             15, Game.standardSize, Color.GREEN);

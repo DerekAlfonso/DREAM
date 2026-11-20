@@ -199,16 +199,22 @@ public class Game implements Runnable {
     // --------------------------------------------------------- ProjectDream.iso the main game file
 
     private void runProjectDream() throws InterruptedException {
-        Terminal.blankLine();
         Terminal.divider();
 
         if (SaveState.stage == null && !SaveState.hasProfile()) {
-            // One paragraph, wrapped by the terminal, instead of seven ragged lines.
-            Terminal.print("Hello friend :) Thank you for choosing to help participate in the testing"
-                + " for the Digital Recreation of Emotional Aptitude Model. the Eris Digital"
-                + " company appreciates your help. My job is to keep you company and entertained!"
-                + " Think of me as your personal digital friend :D lets start off with the simple"
-                + " stuff, whats your name?", 20, standardSize, Color.WHITE);
+            Terminal.print("Hello friend :)", 20, standardSize, Color.WHITE);
+            Terminal.print("Thank you for choosing to help participate in the testing for the. . .",
+                20, standardSize, Color.WHITE);
+            Terminal.print("Digital Recreation of Emotional Aptitude Model",
+                20, standardSize + 2, Color.CYAN);
+            Terminal.print("the Eris Digital company appreciates your help",
+                20, standardSize, Color.WHITE);
+            Terminal.print("My job is to keep you company and entertained!",
+                20, standardSize, Color.WHITE);
+            Terminal.print("Think of me as your personal digital friend :D",
+                20, standardSize, Color.WHITE);
+            Terminal.print("lets start off with the simple stuff, whats your name?",
+                20, standardSize, Color.WHITE);
 
             SaveState.username = askForName(2);
             Terminal.print(SaveState.username + ", huh?", 20, standardSize, Color.WHITE);
