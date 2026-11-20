@@ -17,7 +17,7 @@ final class Cemetery {
                     SaveState.spokenToMysteriousMan = true;
                     SaveState.save();
                 })
-            .take("You take the mysterious man. He does not resist. This raises several questions.")
+            .refuseTake("You can't take the man. That's kidnapping. Which is bad.")
             .build()
     );
 
@@ -32,6 +32,7 @@ final class Cemetery {
         if (!SaveState.spokenToMysteriousMan && !SaveState.hasItem("mysteriousMan")) {
             description += " The vague silhouette of a man is stood motionless at the edge of the cemetary, you can't make out anything about him.";
         }
-        return new Scene(CyaLocation.CEMETARY, "The Cemetary", description, OBJECTS).play(input);
+        return new Scene(CyaLocation.CEMETARY, "The Cemetary",
+            TextSpan.highlighting(description, "man", Scene.NAME), OBJECTS).play(input);
     }
 }

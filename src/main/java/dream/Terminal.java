@@ -6,6 +6,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -59,6 +60,9 @@ public final class Terminal {
     /** Lines kept in memory. Older ones are unreachable anyway once clamped. */
     private static final int MAX_RETAINED_LINES = 400;
 
+    /** A print speed of zero reveals a whole line at once instead of typing it. */
+    private static final int INSTANT_SPEED = 0;
+
     private static CurveCanvas canvas;
     private static Font baseFont = new Font(Font.MONOSPACED, Font.PLAIN, 15);
 
@@ -104,10 +108,19 @@ public final class Terminal {
     /** Drawn at the caret while the player is typing. */
     private static final String CARET = "|";
 
+    /** How long the caret stays on, and then off, while a prompt waits. */
+    private static final int CARET_BLINK_MS = 500;
+
+    /** Flips on a timer while a prompt is waiting, so it is clear you can type. */
+    private static Timer caretTimer = null;
+    private static boolean caretVisible = true;
+
     private Terminal() { }
 
     private static final class MessageRequest {
         final String text;
+        final Color[] charColors;
+        final boolean[] charBold;
         final int speed;
         final int fontSize;
         final Color color;
@@ -115,9 +128,12 @@ public final class Terminal {
         final Font font;
         final int printId;
 
-        MessageRequest(String text, int speed, int fontSize, Color color,
+        MessageRequest(String text, Color[] charColors, boolean[] charBold,
+                       int speed, int fontSize, Color color,
                        int pushUpAmount, Font font, int printId) {
             this.text = text;
+            this.charColors = charColors;
+            this.charBold = charBold;
             this.speed = speed;
             this.fontSize = fontSize;
             this.color = color;
@@ -240,18 +256,52 @@ public final class Terminal {
      * @param speed milliseconds between characters
      */
     public static void print(String fullText, int speed, int fontSize, Color color) {
+        print(List.of(TextSpan.of(fullText == null ? "" : fullText)),
+            speed, fontSize, color);
+    }
+
+    /**
+     * Queues a line built from styled runs, so a word or two can be highlighted
+     * inside an otherwise uniform sentence. Wrapping, typing and skip-typing
+     * treat it exactly like a plain line.
+     *
+     * @param speed milliseconds between characters
+     */
+    public static void print(List<TextSpan> spans, int speed, int fontSize, Color color) {
         if (canvas == null) {
             return;
         }
-        final String safeText = fullText == null ? "" : fullText;
-        SwingUtilities.invokeLater(() -> enqueue(safeText, speed, fontSize, color));
+        final List<TextSpan> safeSpans = List.copyOf(spans);
+        SwingUtilities.invokeLater(() -> enqueue(safeSpans, speed, fontSize, color));
     }
 
+    /**
+     * Queues a line that is on screen the moment it reaches the front of the
+     * queue, with no per-character animation. Combat uses this so a fight reads
+     * one line at a time instead of crawling out letter by letter.
+     */
+    public static void printInstant(String fullText, int fontSize, Color color) {
+        printInstant(List.of(TextSpan.of(fullText == null ? "" : fullText)),
+            fontSize, color);
+    }
 
+    /** The instant counterpart of {@link #print(List, int, int, Color)}. */
+    public static void printInstant(List<TextSpan> spans, int fontSize, Color color) {
+        if (canvas == null) {
+            return;
+        }
+        final List<TextSpan> safeSpans = List.copyOf(spans);
+        SwingUtilities.invokeLater(() -> queue(safeSpans, INSTANT_SPEED, fontSize, color));
+    }
 
     /** Convenience for a blank spacer line. */
     public static void blankLine() {
         print(" ", 1, Game.getStandardSize(), Color.WHITE);
+    }
+
+    /** A dashed rule, for separating one part of the game from the next. */
+    public static void divider() {
+        print("----------------------", 1, Game.getStandardSize(), Color.WHITE);
     }
 
     /**
@@ -348,43 +398,102 @@ public final class Terminal {
         }
     }
 
-    private static void enqueue(String fullText, int speed, int fontSize, Color color) {
+    private static void enqueue(List<TextSpan> spans, int speed, int fontSize, Color color) {
+        queue(spans, Math.max(1, (int) Math.round(speed / speedMultiplier)),
+            fontSize, color);
+    }
+
+    /**
+     * Wraps styled runs to the column and queues them. A speed of
+     * {@link #INSTANT_SPEED} puts the whole line up at once instead of typing it
+     * out.
+     *
+     * <p>Each character keeps the style of the run it came from, and every
+     * character is measured in the font it will actually be drawn in, so a bold
+     * run wraps like the wider glyphs it puts on screen instead of like a
+     * normal-weight copy of them.
+     */
+    private static void queue(List<TextSpan> spans, int speed, int fontSize, Color color) {
         Font font = baseFont.deriveFont(Font.PLAIN, (float) scaledFontSize(fontSize));
-        FontMetrics metrics = canvas.getFontMetrics(font);
-        int maxWidth = contentWidth();
+        FontMetrics plainMetrics = canvas.getFontMetrics(font);
+        FontMetrics boldMetrics = canvas.getFontMetrics(font.deriveFont(Font.BOLD));
 
-        int printId = ++nextPrintId;
-        int scaledSpeed = Math.max(1, (int) Math.round(speed / speedMultiplier));
-        int lineGap = scaled(BASE_LINE_HEIGHT);
-        int wrapGap = scaled(BASE_WRAP_HEIGHT);
+        StringBuilder builder = new StringBuilder();
+        for (TextSpan span : spans) {
+            builder.append(span.text() == null ? "" : span.text());
+        }
+        String plain = builder.toString();
 
-        String[] words = fullText.split(" ");
-        StringBuilder currentLine = new StringBuilder();
-        boolean isFirstLine = true;
+        int[] advance = new int[plain.length()];
+        Color[] charColors = new Color[plain.length()];
+        boolean[] charBold = new boolean[plain.length()];
 
-        for (String word : words) {
-            String testLine = currentLine.length() == 0
-                ? word
-                : currentLine.toString() + " " + word;
-
-            if (metrics.stringWidth(testLine) > maxWidth && currentLine.length() > 0) {
-                int gap = isFirstLine ? lineGap : wrapGap;
-                messageQueue.add(new MessageRequest(currentLine.toString(),
-                    scaledSpeed, fontSize, color, gap, font, printId));
-                currentLine = new StringBuilder(word);
-                isFirstLine = false;
-            } else {
-                currentLine = new StringBuilder(testLine);
+        int at = 0;
+        for (TextSpan span : spans) {
+            String runText = span.text() == null ? "" : span.text();
+            FontMetrics runMetrics = span.bold() ? boldMetrics : plainMetrics;
+            for (int i = 0; i < runText.length(); i++) {
+                advance[at] = runMetrics.charWidth(runText.charAt(i));
+                charColors[at] = span.color();
+                charBold[at] = span.bold();
+                at++;
             }
         }
 
-        if (currentLine.length() > 0) {
-            int gap = isFirstLine ? lineGap : wrapGap;
-            messageQueue.add(new MessageRequest(currentLine.toString(),
-                scaledSpeed, fontSize, color, gap, font, printId));
+        int printId = ++nextPrintId;
+        int lineGap = scaled(BASE_LINE_HEIGHT);
+        int wrapGap = scaled(BASE_WRAP_HEIGHT);
+
+        List<int[]> chunks = wrapChunks(plain, advance, contentWidth());
+        for (int i = 0; i < chunks.size(); i++) {
+            int start = chunks.get(i)[0];
+            int end = chunks.get(i)[1];
+            int gap = i == 0 ? lineGap : wrapGap;
+            messageQueue.add(new MessageRequest(plain.substring(start, end),
+                Arrays.copyOfRange(charColors, start, end),
+                Arrays.copyOfRange(charBold, start, end),
+                speed, fontSize, color, gap, font, printId));
         }
 
         processNextMessage();
+    }
+
+    /**
+     * Splits text into the chunks that fit the column, given the advance of each
+     * character. Breaks at the last space that fits and drops the spaces it
+     * broke on; a single run of unbroken characters wider than the column is
+     * split where it overflows rather than being left to run off the edge.
+     *
+     * @return start and end offsets into the text, in order
+     */
+    static List<int[]> wrapChunks(String text, int[] advance, int maxWidth) {
+        List<int[]> chunks = new ArrayList<>();
+        int start = 0;
+        while (start < text.length()) {
+            int end = start;
+            int width = 0;
+            int lastSpace = -1;
+            while (end < text.length()) {
+                if (end > start && width + advance[end] > maxWidth) {
+                    break;
+                }
+                width += advance[end];
+                if (text.charAt(end) == ' ') {
+                    lastSpace = end;
+                }
+                end++;
+            }
+
+            boolean fitsWholeWord = end < text.length() && lastSpace > start;
+            int breakAt = fitsWholeWord ? lastSpace : end;
+            chunks.add(new int[] {start, breakAt});
+
+            start = breakAt;
+            while (start < text.length() && text.charAt(start) == ' ') {
+                start++;
+            }
+        }
+        return chunks;
     }
 
     /** Runs on the event thread. Types one queued line, then chains to the next. */
@@ -400,14 +509,21 @@ public final class Terminal {
         TextData newLine = addMessageLine(req);
         typingLine = newLine;
 
+        if (req.speed == INSTANT_SPEED) {
+            newLine.setText(req.text);
+            canvas.repaint();
+            finishMessage();
+            return;
+        }
+
         final int[] charIndex = {0};
         Timer timer = new Timer(req.speed, null);
         typingTimer = timer;
         timer.addActionListener(e -> {
             if (charIndex[0] < req.text.length()) {
                 char c = req.text.charAt(charIndex[0]);
-                newLine.setText(newLine.text + c);
                 charIndex[0]++;
+                newLine.reveal(charIndex[0]);
                 if (c != ' ') {
                     playTypingClick();
                 }
@@ -430,8 +546,11 @@ public final class Terminal {
             line.setY(line.y - req.pushUpAmount);
         }
 
-        TextData newLine = new TextData("", startX(), homeY(), req.fontSize,
+        TextData newLine = new TextData(req.text, startX(), homeY(), req.fontSize,
             req.color, req.font);
+        newLine.charColors = req.charColors;
+        newLine.charBold = req.charBold;
+        newLine.reveal(0);
         activeLines.add(newLine);
         canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, newLine);
         trimHistory();
@@ -472,13 +591,13 @@ public final class Terminal {
             typingTimer.stop();
         }
         if (typingLine != null) {
-            typingLine.setText(typingRequest.text);
+            typingLine.revealAll();
         }
 
         while (!messageQueue.isEmpty()
             && messageQueue.peek().printId == printId) {
             MessageRequest rest = messageQueue.poll();
-            addMessageLine(rest).setText(rest.text);
+            addMessageLine(rest).revealAll();
         }
 
         canvas.repaint();
@@ -583,10 +702,29 @@ public final class Terminal {
         }
 
         Font font = baseFont.deriveFont(Font.PLAIN, (float) scaledFontSize(15));
+        caretVisible = true;
         inputLine = new TextData(promptSymbol + CARET, startX(), homeY(), 15, Color.GREEN, font);
         activeLines.add(inputLine);
         canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, inputLine);
+        startCaretBlink();
         canvas.repaint();
+    }
+
+    /** Blinks the caret so an idle prompt still reads as waiting for a typed answer. */
+    private static void startCaretBlink() {
+        stopCaretBlink();
+        caretTimer = new Timer(CARET_BLINK_MS, e -> {
+            caretVisible = !caretVisible;
+            refreshInputLine();
+        });
+        caretTimer.start();
+    }
+
+    private static void stopCaretBlink() {
+        if (caretTimer != null) {
+            caretTimer.stop();
+            caretTimer = null;
+        }
     }
 
     /** Called from the key listener on the event thread. */
@@ -632,6 +770,7 @@ public final class Terminal {
             return;
         }
         awaitingInput = false;
+        stopCaretBlink();
 
         String submitted = currentInput;
         if (inputLine != null) {
@@ -730,7 +869,7 @@ public final class Terminal {
         int cursor = Math.max(0, Math.min(inputCursor, currentInput.length()));
         inputLine.setText(promptSymbol
             + currentInput.substring(0, cursor)
-            + CARET
+            + (caretVisible ? CARET : " ")
             + currentInput.substring(cursor));
         canvas.repaint();
     }
@@ -783,6 +922,11 @@ public final class Terminal {
         scrollOffset += clamped;
         canvas.scrollAllText(clamped);
         return true;
+    }
+
+    /** True when the log has been scrolled back off its newest line. */
+    public static boolean isScrolledBack() {
+        return scrollOffset != 0;
     }
 
     /** How far one PageUp/PageDown press moves the log. */

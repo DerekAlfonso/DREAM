@@ -25,7 +25,7 @@ final class EndlessMode {
         void apply(Player player);
     }
 
-    private static final int MAX_POTIONS = 5;
+    private static final int STARTING_POTION_SLOTS = 5;
     private static final int STARTING_HEALTH = 100;
     private static final int STARTING_MIN_DAMAGE = 10;
     private static final int STARTING_MAX_DAMAGE = 14;
@@ -47,11 +47,14 @@ final class EndlessMode {
                 "+20 maximum health, and immediately heals 20.",
                 15, 7, 6, p -> p.gainMaxHealth(20)),
             new Upgrade("Weapon Tuning", "damage",
-                "+3 weapon damage.",
+                "+3 damage.",
                 18, 8, 6, p -> p.gainDamage(3)),
             new Upgrade("Potion Brewing", "healing",
                 "+8 healing per potion.",
-                12, 6, 6, p -> p.gainPotionStrength(8))
+                12, 6, 6, p -> p.gainPotionStrength(8)),
+            new Upgrade("Potion Belt", "slots",
+                "+1 potion slot, so you can carry one more.",
+                14, 8, 3, p -> p.gainPotionSlots(1))
         );
     }
 
@@ -67,7 +70,8 @@ final class EndlessMode {
             if (enterNextRoom) {
                 room++;
                 if (!fightRoom()) {
-                    finishRun(false);
+                    // Dying ends the run; getting out alive still counts as leaving.
+                    finishRun(player.isAlive());
                     return;
                 }
                 enterNextRoom = false;
@@ -90,8 +94,10 @@ final class EndlessMode {
         Terminal.print("ENDLESS MODE", 20, 22, Color.CYAN);
         Terminal.print("The dungeon has no bottom. Every room is worse than the last.",
             20, 15, Color.WHITE);
-        Terminal.print("In combat, type ATTACK or HEAL. Between rooms, choose another room,"
-            + " visit the shop, or LEAVE.", 20, 15, Color.WHITE);
+        Terminal.print("In combat, type ATTACK or HEAL; once you have cleared a room you can"
+            + " LEAVE a fight.", 20, 15, Color.WHITE);
+        Terminal.print("Between rooms, choose another room, visit the shop, or LEAVE.",
+            20, 15, Color.WHITE);
         Terminal.blankLine();
     }
 
@@ -108,9 +114,19 @@ final class EndlessMode {
         while (enemy.isAlive() && player.isAlive()) {
             Terminal.blankLine();
             printCombatStatus(enemy);
-            Terminal.print("type ATTACK to strike or HEAL to use a potion.",
+            // One room is all the dungeon insists on; after that a fight is optional.
+            boolean mayLeave = roomsCleared > 0;
+            Terminal.print(mayLeave
+                ? "type ATTACK to strike, HEAL to use a potion, or LEAVE to get out."
+                : "type ATTACK to strike or HEAL to use a potion.",
                 15, 15, Color.WHITE);
             String action = input.read();
+
+            if (mayLeave && matches(action, "leave", "flee", "run")) {
+                Terminal.print("You back away from the " + enemy.type.name
+                    + " and slip out of the room.", 20, 15, Color.WHITE);
+                return false;
+            }
 
             if (matches(action, "1", "attack")) {
                 attack(enemy);
@@ -119,7 +135,9 @@ final class EndlessMode {
                     continue;
                 }
             } else {
-                Terminal.print("please type ATTACK or HEAL.", 20, 15, Color.RED);
+                Terminal.print(mayLeave
+                    ? "please type ATTACK, HEAL or LEAVE."
+                    : "please type ATTACK or HEAL.", 20, 15, Color.RED);
                 continue;
             }
 
@@ -144,75 +162,75 @@ final class EndlessMode {
 
     private void attack(Enemy enemy) {
         if (enemy.blocks(random)) {
-            Terminal.print("The " + enemy.type.name + " blocks your attack.",
-                20, 15, Color.RED);
+            Terminal.printInstant("The " + enemy.type.name + " blocks your attack.",
+                15, Color.RED);
             return;
         }
         if (enemy.dodges(random)) {
-            Terminal.print("The " + enemy.type.name + " dodges your attack.",
-                20, 15, Color.RED);
+            Terminal.printInstant("The " + enemy.type.name + " dodges your attack.",
+                15, Color.RED);
             return;
         }
 
         int damage = player.rollDamage(random);
         enemy.health = Math.max(0, enemy.health - damage);
-        Terminal.print("You hit the " + enemy.type.name + " for " + damage
-            + " damage.", 20, 15, Color.GREEN);
+        Terminal.printInstant("You hit the " + enemy.type.name + " for " + damage
+            + " damage.", 15, Color.GREEN);
 
         int recoil = enemy.recoilDamage(damage);
         if (recoil > 0) {
             player.takeDamage(recoil);
-            Terminal.print("The " + enemy.type.name
-                + " returns " + recoil + " damage to you.", 20, 15, Color.RED);
+            Terminal.printInstant("The " + enemy.type.name
+                + " returns " + recoil + " damage to you.", 15, Color.RED);
         }
     }
 
     private void enemyAttack(Enemy enemy) {
         int damage = enemy.rollDamage(random);
         player.takeDamage(damage);
-        Terminal.print("The " + enemy.type.name + " hits you for " + damage
-            + " damage.", 20, 15, Color.RED);
+        Terminal.printInstant("The " + enemy.type.name + " hits you for " + damage
+            + " damage.", 15, Color.RED);
 
         if (enemy.stealsLife(random)) {
             int healed = enemy.heal(enemy.stolenHealth(damage));
             if (healed > 0) {
-                Terminal.print("The " + enemy.type.name
+                Terminal.printInstant("The " + enemy.type.name
                     + " absorbs the wound and recovers " + healed + " HP.",
-                    20, 15, Color.CYAN);
+                    15, Color.CYAN);
             }
         }
     }
 
     private boolean usePotion() {
         if (player.potions <= 0) {
-            Terminal.print("You have no potions left.", 20, 15, Color.RED);
+            Terminal.printInstant("You have no potions left.", 15, Color.RED);
             return false;
         }
         if (player.health >= player.maxHealth) {
-            Terminal.print("You are already at full health.", 20, 15, Color.WHITE);
+            Terminal.printInstant("You are already at full health.", 15, Color.WHITE);
             return false;
         }
 
         player.potions--;
         int healed = player.heal(player.potionHealing);
-        Terminal.print("You drink a potion and recover " + healed + " HP. ("
-            + player.potions + " potions left)", 20, 15, Color.GREEN);
+        Terminal.printInstant("You drink a potion and recover " + healed + " HP. ("
+            + player.potions + " potions left)", 15, Color.GREEN);
         return true;
     }
 
     private void printEnemyStatus(Enemy enemy) {
-        Terminal.print("The " + enemy.type.name + " has " + enemy.health + "/"
+        Terminal.printInstant("The " + enemy.type.name + " has " + enemy.health + "/"
             + enemy.maxHealth + " HP and deals " + enemy.minDamage + "-"
-            + enemy.maxDamage + " damage.", 15, 15, Color.WHITE);
+            + enemy.maxDamage + " damage.", 15, Color.WHITE);
     }
 
     private void printCombatStatus(Enemy enemy) {
-        Terminal.print("You: " + player.health + "/" + player.maxHealth
-            + " HP  |  weapon " + player.minDamage + "-" + player.maxDamage
-            + "  |  potions " + player.potions + "/" + MAX_POTIONS,
-            15, 15, Color.GREEN);
-        Terminal.print("The " + enemy.type.name + ": " + enemy.health + "/"
-            + enemy.maxHealth + " HP", 15, 15, Color.RED);
+        Terminal.printInstant("You: " + player.health + "/" + player.maxHealth
+            + " HP  |  damage " + player.minDamage + "-" + player.maxDamage
+            + "  |  potions " + player.potions + "/" + player.maxPotions,
+            15, Color.GREEN);
+        Terminal.printInstant("The " + enemy.type.name + ": " + enemy.health + "/"
+            + enemy.maxHealth + " HP", 15, Color.RED);
     }
 
     private String corridorChoice() throws InterruptedException {
@@ -243,15 +261,16 @@ final class EndlessMode {
         Terminal.print("Rooms cleared: " + roomsCleared + "  |  Coins: "
             + player.coins, 15, 15, Color.WHITE);
         Terminal.print("HP: " + player.health + "/" + player.maxHealth
-            + "  |  Weapon: " + player.minDamage + "-" + player.maxDamage
-            + "  |  Potions: " + player.potions + "/" + MAX_POTIONS,
+            + "  |  Damage: " + player.minDamage + "-" + player.maxDamage
+            + "  |  Potions: " + player.potions + "/" + player.maxPotions,
             15, 15, Color.WHITE);
     }
 
     private void openShop() throws InterruptedException {
         Terminal.blankLine();
+        Terminal.divider();
         Terminal.print("THE SHOP", 20, 20, Color.CYAN);
-        Terminal.print("Upgrades last for this run only.", 15, 15, Color.WHITE);
+        Terminal.print("Upgrades last for this run only.", 15, 15, Color.GREEN);
 
         while (true) {
             Terminal.blankLine();
@@ -264,11 +283,11 @@ final class EndlessMode {
                 Terminal.print("[" + (i + 1) + "] " + upgrade.name + "  Lv "
                     + upgrade.level + "/" + upgrade.maxLevel + "  (" + price + ")",
                     15, 15, Color.WHITE);
-                Terminal.print("    " + upgrade.description, 10, 15, Color.CYAN);
+                Terminal.print("    " + upgrade.description, 10, 15, Color.GREEN);
             }
 
             int potionOption = upgrades.size() + 1;
-            String potionPrice = player.potions >= MAX_POTIONS
+            String potionPrice = player.potions >= player.maxPotions
                 ? "full" : potionCost() + " coins";
             Terminal.print("[" + potionOption + "] Restock one potion  ("
                 + potionPrice + ")", 15, 15, Color.WHITE);
@@ -331,7 +350,7 @@ final class EndlessMode {
     }
 
     private void buyPotion() {
-        if (player.potions >= MAX_POTIONS) {
+        if (player.potions >= player.maxPotions) {
             Terminal.print("You cannot carry any more potions.",
                 20, 15, Color.WHITE);
             return;
@@ -346,7 +365,7 @@ final class EndlessMode {
 
         player.coins -= cost;
         player.potions++;
-        Terminal.print("Bought a potion. (" + player.potions + "/" + MAX_POTIONS + ")",
+        Terminal.print("Bought a potion. (" + player.potions + "/" + player.maxPotions + ")",
             20, 15, Color.GREEN);
     }
 
@@ -356,6 +375,7 @@ final class EndlessMode {
 
     private void finishRun(boolean left) {
         Terminal.blankLine();
+        Terminal.divider();
         Terminal.print("ENDLESS RUN OVER", 20, 20, Color.CYAN);
         if (left) {
             Terminal.print("You climb out of the dungeon while you still can.",
@@ -431,6 +451,7 @@ final class EndlessMode {
         int maxDamage = STARTING_MAX_DAMAGE;
         int potionHealing = STARTING_POTION_HEALING;
         int potions = STARTING_POTIONS;
+        int maxPotions = STARTING_POTION_SLOTS;
         int coins;
 
         boolean isAlive() {
@@ -463,6 +484,10 @@ final class EndlessMode {
 
         void gainPotionStrength(int amount) {
             potionHealing += amount;
+        }
+
+        void gainPotionSlots(int amount) {
+            maxPotions += amount;
         }
     }
 }

@@ -11,6 +11,9 @@ import java.util.List;
  */
 final class Scene {
 
+    /** Colour that marks an object's name, so the thing you can type stands out. */
+    static final Color NAME = Color.GREEN;
+
     @FunctionalInterface
     interface Input {
         String read() throws InterruptedException;
@@ -18,13 +21,18 @@ final class Scene {
 
     private final CyaLocation here;
     private final String title;
-    private final String description;
+    private final List<TextSpan> description;
     private final List<Interactable> objects;
 
     Scene(CyaLocation here, String title, String description, List<Interactable> objects) {
+        this(here, title, List.of(TextSpan.of(description)), objects);
+    }
+
+    /** Same, for an area whose description points at something in it. */
+    Scene(CyaLocation here, String title, List<TextSpan> description, List<Interactable> objects) {
         this.here = here;
         this.title = title;
-        this.description = description;
+        this.description = List.copyOf(description);
         this.objects = List.copyOf(objects);
     }
 
@@ -97,7 +105,8 @@ final class Scene {
             if (SaveState.hasItem(object.id)) {
                 continue;
             }
-            Terminal.print("- " + object.displayName, 15, Game.standardSize, Color.WHITE);
+            Terminal.print(TextSpan.highlighting("- " + object.displayName,
+                object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
             any = true;
         }
         if (!any) {
@@ -110,10 +119,12 @@ final class Scene {
         if (object == null) {
             Terminal.print("you don't see that here.", 15, Game.standardSize, Color.RED);
         } else if (SaveState.hasItem(object.id)) {
-            Terminal.print("you are carrying the " + object.displayName + ".",
+            Terminal.print(TextSpan.highlighting("you are carrying the "
+                + object.displayName + ".", object.displayName, NAME),
                 15, Game.standardSize, Color.WHITE);
         } else {
-            Terminal.print(object.lookText, 15, Game.standardSize, Color.WHITE);
+            Terminal.print(TextSpan.highlighting(object.lookText,
+                object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
         }
     }
 
@@ -130,7 +141,8 @@ final class Scene {
         if (object.onInteract != null) {
             object.onInteract.run();
         }
-        Terminal.print(object.interactText, 15, Game.standardSize, Color.WHITE);
+        Terminal.print(TextSpan.highlighting(object.interactText,
+            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
     }
 
     private void take(String target) {
@@ -144,11 +156,13 @@ final class Scene {
             return;
         }
         if (SaveState.hasItem(object.id)) {
-            Terminal.print("you already have the " + object.displayName + ".",
+            Terminal.print(TextSpan.highlighting("you already have the "
+                + object.displayName + ".", object.displayName, NAME),
                 15, Game.standardSize, Color.WHITE);
             return;
         }
-        Terminal.print(object.takeText, 15, Game.standardSize, Color.WHITE);
+        Terminal.print(TextSpan.highlighting(object.takeText,
+            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
         if (!object.takeable) {
             return;
         }
@@ -209,7 +223,8 @@ final class Scene {
         }
         for (String id : SaveState.takenObjects) {
             Interactable object = ObjectCatalog.byId(id);
-            Terminal.print("- " + (object == null ? id : object.displayName),
+            String name = object == null ? id : object.displayName;
+            Terminal.print(TextSpan.highlighting("- " + name, name, NAME),
                 15, Game.standardSize, Color.WHITE);
         }
     }
@@ -227,7 +242,6 @@ final class Scene {
         printCommand("help", "show this command list");
         printCommand("leave", "finish exploring");
         printCommand("back | return | home", "aliases for leave");
-        printCommand("menu", "save and return to the main menu");
         printCommand("quit | exit", "quit the game (with confirmation)");
     }
 

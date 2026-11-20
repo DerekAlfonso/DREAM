@@ -15,8 +15,8 @@
     <!-- Base version for local builds. CI overrides it with -Drevision=MAJOR.MINOR.<run number>
          so every build gets a unique, increasing version. Bump MAJOR.MINOR here. -->
     <revision>1.0.0</revision>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 

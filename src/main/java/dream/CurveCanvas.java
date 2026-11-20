@@ -3,6 +3,7 @@ package dream;
 import javax.swing.JPanel;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -383,24 +384,44 @@ public class CurveCanvas extends JPanel {
 
     /**
      * Draws each line one character at a time, nudging every glyph along a
-     * quadratic curve so the whole screen appears to bulge outwards.
+     * quadratic curve so the whole screen appears to bulge outwards. A glyph
+     * takes its colour and weight from the run it belongs to, so highlighting
+     * one word leaves the rest of the line exactly as it was.
      */
     private void drawText(Graphics2D g2, Layer layer, int width, int height) {
         for (TextData td : layer.textItems) {
+            int shown = td.visibleLength();
             // Skip anything scrolled well clear of the viewport. With per-glyph
             // transforms this matters a lot once the log gets long.
-            if (td.y < -120 || td.y > height + 120 || td.text.isEmpty()) {
+            if (td.y < -120 || td.y > height + 120 || shown == 0) {
                 continue;
             }
 
-            g2.setColor(td.color);
-            g2.setFont(td.font);
             FontMetrics metrics = g2.getFontMetrics(td.font);
+            Font boldFont = td.hasBold() ? td.boldFont() : td.font;
+            FontMetrics boldMetrics = td.hasBold() ? g2.getFontMetrics(boldFont) : metrics;
 
             double currentX = td.x;
             double tY = td.y / (double) height;
 
-            for (char c : td.text.toCharArray()) {
+            Color drawnColor = null;
+            Font drawnFont = null;
+
+            for (int i = 0; i < shown; i++) {
+                char c = td.text.charAt(i);
+                boolean bold = td.isBold(i);
+                Color color = td.colorAt(i);
+
+                if (!color.equals(drawnColor)) {
+                    g2.setColor(color);
+                    drawnColor = color;
+                }
+                Font font = bold ? boldFont : td.font;
+                if (!font.equals(drawnFont)) {
+                    g2.setFont(font);
+                    drawnFont = font;
+                }
+
                 double tX = currentX / (double) width;
 
                 double yBendFactor = (td.y - height / 2.0) * 0.14;
@@ -420,7 +441,8 @@ public class CurveCanvas extends JPanel {
                 g2.drawString(String.valueOf(c), 0, 0);
                 g2.setTransform(old);
 
-                currentX += metrics.getStringBounds(String.valueOf(c), g2).getWidth();
+                currentX += (bold ? boldMetrics : metrics)
+                    .getStringBounds(String.valueOf(c), g2).getWidth();
             }
         }
     }

@@ -26,6 +26,9 @@ public class Game implements Runnable {
 
     private static final Color PURPLE = new Color(141, 20, 222);
 
+    /** The three moves, in the order the game lists them. */
+    private static final String[] MOVES = {"rock", "paper", "scissors"};
+
     private final Random random = new Random();
     private volatile boolean running = true;
     static int standardSize = 15; // denotes the standard size for text, all text should use this as a reference
@@ -116,12 +119,12 @@ public class Game implements Runnable {
         String chosenSplash = splashes.get(random.nextInt(splashes.size()));
 
         Terminal.print("INITIALIZING SYSTEM...", 20, standardSize, Color.GREEN);
-        pause(1200);
+        loadingPause(1200);
         runLoadingBar();
-        pause(600);
+        loadingPause(600);
         Terminal.print("- " + chosenSplash, 20, standardSize, Color.WHITE);
-        Terminal.print("----------------------", 0, standardSize, Color.WHITE);
-        pause(2000);
+        Terminal.divider();
+        loadingPause(2000);
     }
 
     /** How many cells wide the bar's track is. */
@@ -133,14 +136,17 @@ public class Game implements Runnable {
     /**
      * A fake load, because booting instantly does not feel like putting a disc
      * in. Each percentage point waits a random 0-100ms, so the bar stutters and
-     * surges the way a real one does instead of ticking along evenly.
+     * surges the way a real one does instead of ticking along evenly. With
+     * fastBoot the bar is skipped; the machine still spins up and says so.
      */
     private void runLoadingBar() throws InterruptedException {
-        Terminal.StatusLine bar = Terminal.openStatusLine(standardSize, Color.GREEN);
+        if (!Settings.fastBoot) {
+            Terminal.StatusLine bar = Terminal.openStatusLine(standardSize, Color.GREEN);
 
-        for (int percent = 0; percent <= 100; percent++) {
-            bar.set(renderBar(percent));
-            pause(random.nextInt(101));
+            for (int percent = 0; percent <= 100; percent++) {
+                bar.set(renderBar(percent));
+                pause(random.nextInt(101));
+            }
         }
 
         // The machine spins up the moment the load finishes, not at launch.
@@ -194,16 +200,15 @@ public class Game implements Runnable {
 
     private void runProjectDream() throws InterruptedException {
         Terminal.blankLine();
-        Terminal.print("----------------------", 1, standardSize, Color.WHITE);
+        Terminal.divider();
 
         if (SaveState.stage == null && !SaveState.hasProfile()) {
-            Terminal.print("Hello friend :)", 20, standardSize, Color.WHITE);
-            Terminal.print("Thank you for choosing to help participate in the testing for the. . .", 20, standardSize, Color.WHITE);
-            Terminal.print("Digital Recreation of Emotional Aptitude Model", 20, standardSize + 2, Color.CYAN);
-            Terminal.print("the Eris Digital company appreciates your help", 20, standardSize, Color.WHITE);
-            Terminal.print("My job is to keep you company and entertained!", 20, standardSize, Color.WHITE);
-            Terminal.print("Think of me as your personal digital friend :D", 20, standardSize, Color.WHITE);
-            Terminal.print("lets start off with the simple stuff, whats your name?", 20, standardSize, Color.WHITE);
+            // One paragraph, wrapped by the terminal, instead of seven ragged lines.
+            Terminal.print("Hello friend :) Thank you for choosing to help participate in the testing"
+                + " for the Digital Recreation of Emotional Aptitude Model. the Eris Digital"
+                + " company appreciates your help. My job is to keep you company and entertained!"
+                + " Think of me as your personal digital friend :D lets start off with the simple"
+                + " stuff, whats your name?", 20, standardSize, Color.WHITE);
 
             SaveState.username = askForName(2);
             Terminal.print(SaveState.username + ", huh?", 20, standardSize, Color.WHITE);
@@ -224,28 +229,29 @@ public class Game implements Runnable {
             Terminal.print("I want to get to know you better", 20, standardSize, Color.WHITE);
             Terminal.print("but I can't just ask you questions all day (even if I want to)", 20, standardSize, Color.WHITE);
             Terminal.print("so lets play a few games together :)", 20, standardSize, Color.WHITE);
-            Terminal.print("lets start with Rock, Paper, Scissors!", 20, standardSize, Color.WHITE);
 
-            SaveState.stage = SaveState.STAGE_MINIGAMES;
+            SaveState.stage = SaveState.STAGE_RPS;
             SaveState.save();
         } else {
             if (SaveState.stage == null) {
                 // Save from before checkpoints existed: use what it already knows.
-                SaveState.stage = SaveState.CYALocation != null
+                SaveState.stage = SaveState.cyaLocation != null
                     ? SaveState.STAGE_CYA
-                    : SaveState.STAGE_MINIGAMES;
+                    : SaveState.STAGE_RPS;
                 SaveState.save();
             }
             Terminal.print("welcome back, " + SaveState.username + " :3", 20, standardSize, Color.GREEN);
-            Terminal.print("lets continue where we left off, with games!");
+            Terminal.print("lets continue where we left off, with games!", 20, standardSize, Color.WHITE);
         }
 
-        if (SaveState.STAGE_MINIGAMES.equals(SaveState.stage)) {
+        if (SaveState.STAGE_RPS.equals(SaveState.stage)) {
             playRockPaperScissors();
             Terminal.print("bored already?", 20, standardSize, Color.WHITE);
             Terminal.print("alrighty we can do something else", 20, standardSize, Color.WHITE);
             Terminal.print("let me think for a second", 20, standardSize, Color.WHITE);
+            pause(1500);
             Terminal.print(" . . . . .", 200, standardSize, Color.WHITE);
+            pause(1200);
             Terminal.print("I got it!", 20, standardSize, Color.WHITE);
             Terminal.print("lets play a game of HangMan!", 20, standardSize, Color.WHITE);
             Terminal.print("I'll chose a random word and you have to guess what it is!", 20, standardSize, Color.WHITE);
@@ -253,6 +259,8 @@ public class Game implements Runnable {
 
             Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, standardSize, Color.WHITE);
             Terminal.print("how about something with a little more complexity..", 20, standardSize, Color.WHITE);
+            pause(1000);
+            Terminal.divider();
             Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
             pause(500);
             Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
@@ -265,8 +273,9 @@ public class Game implements Runnable {
             Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
             Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
             Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
+            AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
             Terminal.print(". . .", 600, standardSize, Color.WHITE);
-            Terminal.print("I can't seem to find a drumroll sound in my files, just imagine what one would sound like here", 20, standardSize, Color.WHITE);
+            Terminal.print("that's the closest thing to a drumroll I could find in my files", 20, standardSize, Color.WHITE);
             Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
             Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
         }
@@ -275,33 +284,39 @@ public class Game implements Runnable {
 
         Terminal.awaitIdle();
 
-        SaveState.save();
-        pause(1500);
-        Terminal.blankLine();
+        // The story is over, so clear the save and start the next run clean.
+        SaveState.reset();
+        Terminal.print("that's the end. your save has been cleared, so the next run starts fresh.",
+            20, standardSize, Color.GREEN);
+        pause(2500);
+        Terminal.clear();
     }
 
     /**
-     * Plays rounds of rock, paper, scissors until the player types DONE or
-     * BACK. There is no fixed round count: the player decides when they have
-     * had enough.
+     * Plays rounds of rock, paper, scissors until the player types CANCEL.
+     * There is no fixed round count: the player decides when they have had
+     * enough.
      */
     private void playRockPaperScissors() throws InterruptedException {
         Terminal.blankLine();
+        pause(1500);
+        Terminal.divider();
         Terminal.print("Rock, Paper, Scissors!", 20, 15, Color.CYAN);
-        Terminal.print("type rock, paper or scissors, or DONE / BACK to stop playing.",
+        Terminal.print("type rock, paper or scissors (r, p and s work too).",
             15, 15, Color.WHITE);
+        Terminal.print("type CANCEL to stop playing.", 15, 15, Color.WHITE);
 
         while (running) {
             Terminal.print("what's your move?", 15, 15, Color.WHITE);
 
             String input = ask();
-            if (input.equalsIgnoreCase("done") || isBackCommand(input)) {
+            if (isCancel(input)) {
                 break;
             }
 
             String playerMove = toMove(input);
             if (playerMove == null) {
-                Terminal.print("please type rock, paper, scissors, done or back.",
+                Terminal.print("please type rock, paper, scissors or CANCEL.",
                     15, 15, Color.RED);
                 continue;
             }
@@ -316,18 +331,26 @@ public class Game implements Runnable {
     /** Turns player input into one of the three moves, or null if it is not one. */
     private static String toMove(String input) {
         String normalized = input.toLowerCase();
-        if (normalized.equals("rock")
-            || normalized.equals("paper")
-            || normalized.equals("scissors")) {
-            return normalized;
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        // Any shortening works: r, ro, roc, rock; p, pa, paper; s, sc, scissors.
+        for (String move : MOVES) {
+            if (move.startsWith(normalized)) {
+                return move;
+            }
         }
         return null;
     }
 
+    /** The one way out of a minigame: CANCEL, or any of the back words. */
+    private static boolean isCancel(String input) {
+        return input.equalsIgnoreCase("cancel") || isBackCommand(input);
+    }
+
     /** Picks the computer's move, then says who won the round. */
     private void playRound(String playerMove) {
-        String[] moves = {"rock", "paper", "scissors"};
-        String cpuMove = moves[random.nextInt(moves.length)];
+        String cpuMove = MOVES[random.nextInt(MOVES.length)];
 
         Terminal.print("you chose " + playerMove + ".", 15, 15, Color.WHITE);
         Terminal.print(SaveState.cpuName + " chose " + cpuMove + ".", 15, 15, Color.WHITE);
@@ -348,10 +371,15 @@ public class Game implements Runnable {
             || (move.equals("scissors") && other.equals("paper"));
     }
 
-
-
-    /** Wrong letters a player may guess before the round is lost. */
-    private static final int HANGMAN_MISSES = 6;
+    /**
+     * Wrong guesses allowed for a word. The allowance scales with the number of
+     * distinct letters, because a long word that repeats itself is far easier
+     * than a short one that does not. Four to eight keeps both ends fair.
+     */
+    private static int hangmanMisses(String word) {
+        int distinct = (int) word.chars().distinct().count();
+        return Math.max(4, Math.min(8, distinct / 2 + 2));
+    }
 
     /** Used when the random-word service cannot be reached. */
     private static final List<String> HANGMAN_FALLBACK_WORDS = List.of(
@@ -402,7 +430,6 @@ public class Game implements Runnable {
             }
         }
 
-        Terminal.print("good game :)", 20, 15, Color.GREEN);
         Terminal.blankLine();
     }
 
@@ -410,11 +437,12 @@ public class Game implements Runnable {
     private boolean playHangmanRound(String word) throws InterruptedException {
         Set<Character> guessed = new TreeSet<>();
         Set<Character> missed = new TreeSet<>();
+        int allowedMisses = hangmanMisses(word);
 
         Terminal.print("the word has " + word.length() + " letters.",
             15, 15, Color.WHITE);
         Terminal.print(hangmanMask(word, guessed), 1, 20, Color.CYAN);
-        Terminal.print("you get " + HANGMAN_MISSES + " wrong guesses.",
+        Terminal.print("you get " + allowedMisses + " wrong guesses.",
             15, 15, Color.WHITE);
 
         while (running) {
@@ -422,8 +450,7 @@ public class Game implements Runnable {
                 15, 15, Color.WHITE);
 
             String input = ask();
-            if (input.equalsIgnoreCase("cancel") || isBackCommand(input)
-                || input.equalsIgnoreCase("done")) {
+            if (isCancel(input)) {
                 return false;
             }
 
@@ -448,15 +475,15 @@ public class Game implements Runnable {
 
             Terminal.print(hangmanMask(word, guessed), 1, 20, Color.CYAN);
             Terminal.print("wrong: " + formatLetters(missed) + "   guesses left: "
-                + (HANGMAN_MISSES - missed.size()), 15, 15,
-                missed.size() >= HANGMAN_MISSES - 1 ? Color.RED : Color.WHITE);
+                + (allowedMisses - missed.size()), 15, 15,
+                missed.size() >= allowedMisses - 1 ? Color.RED : Color.WHITE);
 
             if (hangmanSolved(word, guessed)) {
                 Terminal.print("you got it! the word was " + word + ".",
                     20, 15, Color.GREEN);
                 return true;
             }
-            if (missed.size() >= HANGMAN_MISSES) {
+            if (missed.size() >= allowedMisses) {
                 Terminal.print("out of guesses. the word was " + word + ".",
                     20, 15, Color.RED);
                 return true;
@@ -476,8 +503,7 @@ public class Game implements Runnable {
             if (input.equalsIgnoreCase("new")) {
                 return true;
             }
-            if (input.equalsIgnoreCase("cancel") || isBackCommand(input)
-                || input.equalsIgnoreCase("done")) {
+            if (isCancel(input)) {
                 return false;
             }
             Terminal.print("please type NEW or CANCEL.", 15, 15, Color.RED);
@@ -609,7 +635,7 @@ public class Game implements Runnable {
     private boolean playDungeonCrawler() throws InterruptedException
     {
         Terminal.print("Loading Dungeon Crawler..", 20, 15, Color.WHITE);
-        pause(5000);
+        loadingPause(5000);
         Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
         Terminal.blankLine();
         Terminal.print("[1] Campaign Mode", 20, 15, Color.WHITE);
@@ -667,7 +693,7 @@ public class Game implements Runnable {
 
     // the shmeat and potatoes, where it gets real... story wise at least, the rest of the game has already tested my limits
     private void playCYA() throws InterruptedException {
-        if (SaveState.CYALocation != null) {
+        if (SaveState.cyaLocation != null) {
             Terminal.print("resuming your adventure...", 20, standardSize, Color.CYAN);
             resumeCYA();
             return;
@@ -675,7 +701,7 @@ public class Game implements Runnable {
 
         Terminal.blankLine();
         Terminal.print("Loading CYA . . .", 1, standardSize, Color.WHITE);
-        pause(5000);
+        loadingPause(5000);
         Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         Terminal.blankLine();
         Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
@@ -696,6 +722,7 @@ public class Game implements Runnable {
 
         Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
         Terminal.print("as you wade through the forest you happen upon an old cemetary", 15, standardSize, Color.WHITE);
+        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
         goToCemetary();
     }
 
@@ -705,58 +732,66 @@ public class Game implements Runnable {
             Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
         }
 
-        switch (SaveState.CYALocation) {
-            case "cemetary":
+        if (SaveState.cyaLocation == null) {
+            // No usable checkpoint, so start the CYA over from the beginning.
+            playCYA();
+            return;
+        }
+        goTo(SaveState.cyaLocation);
+    }
+
+    /** Enters one of the CYA areas. */
+    private void goTo(CyaLocation location) throws InterruptedException {
+        switch (location) {
+            case CEMETARY:
                 goToCemetary();
                 break;
-            case "shackOuter":
+            case SHACK_OUTER:
                 goToDecrepitShackOuter();
                 break;
-            case "shackInner":
+            case SHACK_INNER:
                 goToDecrepitShackInner();
                 break;
-            case "house":
+            case HOUSE:
                 goToHouse();
-                break;
-            default:
-                // Unknown checkpoint, so start the CYA over from the beginning.
-                SaveState.CYALocation = null;
-                playCYA();
                 break;
         }
     }
 
+    /**
+     * The cemetary scene. Cemetery owns the description and the objects here, so
+     * the ask at the end of it works off that list and always offers whatever is
+     * actually in the scene.
+     */
     private void goToCemetary() throws InterruptedException
     {
-        SaveState.CYALocation = "cemetary";
+        SaveState.cyaLocation = CyaLocation.CEMETARY;
         SaveState.save();
-        Terminal.print("The Cemetary", 1, standardSize + 4, Color.GRAY);
-        Terminal.blankLine();
-        Terminal.print("You walk into a cemetary, it smells like wet dirt and feels like empty promises.", 15, standardSize, Color.WHITE);
-        if (SpokenToMysteriousMan == false)
-        {
-            Terminal.print("The vague silhouette of a man is stood motionless at the edge of the cemetary, you can't make out anything about him.", 15, standardSize, Color.WHITE);
+
+        CyaLocation destination = Cemetery.play(this::ask);
+        if (destination != null) {
+            goTo(destination);
         }
     }
 
     private void goToDecrepitShackOuter() throws InterruptedException
     {
         Terminal.print("Outer shack gameplay", 15, standardSize, Color.RED);
-        SaveState.CYALocation = "shackOuter";
+        SaveState.cyaLocation = CyaLocation.SHACK_OUTER;
         SaveState.save();
     }
 
     private void goToDecrepitShackInner() throws InterruptedException
     {
         Terminal.print("Inner Shack gameplay", 15, standardSize, Color.RED);
-        SaveState.CYALocation = "shackInner";
+        SaveState.cyaLocation = CyaLocation.SHACK_INNER;
         SaveState.save();
     }
 
     private void goToHouse() throws InterruptedException
     {
         Terminal.print("house (no not the doctor from the TV show) gameplay", 15, standardSize, Color.RED);
-        SaveState.CYALocation = "house";
+        SaveState.cyaLocation = CyaLocation.HOUSE;
         SaveState.save();
     }
 
@@ -785,14 +820,21 @@ public class Game implements Runnable {
     }
     }
 
+    /** Longest name the story will accept, so it always fits a line. */
+    private static final int MAX_NAME_LENGTH = 16;
+
     /**
-     * Keeps asking for a name until the answer is usable. will not take names under a certain length and the name cannot be Eris for story reasons
+     * Keeps asking for a name until the answer is usable. will not take names
+     * outside the allowed length and the name cannot be Eris for story reasons
      */
     private String askForName(int minimumLength) throws InterruptedException {
         while (true) {
             String input = ask();
 
-            if (input.isEmpty()
+            if (input.length() > MAX_NAME_LENGTH) {
+                Terminal.print("that's too long, keep it to " + MAX_NAME_LENGTH
+                    + " characters", 20, standardSize, Color.RED);
+            } else if (input.isEmpty()
                 || input.length() < minimumLength
                 || input.equalsIgnoreCase("eris")) {
                 Terminal.print("input a valid name", 20, standardSize, Color.RED);
@@ -805,7 +847,7 @@ public class Game implements Runnable {
     // -------------------------------------------------------------- credits
 
     private void runCredits() throws InterruptedException {
-        Terminal.print("----------------------", 1, standardSize, Color.WHITE);
+        Terminal.divider();
         Terminal.print("Developed and Written by: ", 100, standardSize + 5, Color.WHITE);
         Terminal.print("Aedan Alfonso (Aesfo)", 1, standardSize + 2, PURPLE);
         Terminal.blankLine();
@@ -834,7 +876,7 @@ public class Game implements Runnable {
     // ------------------------------------------------------------- settings
 
     private void runSettings() throws InterruptedException {
-        Terminal.print("----------------------", 1, standardSize, Color.WHITE);
+        Terminal.divider();
         Terminal.print("settings.bin", 20, standardSize + 2, Color.CYAN);
 
         while (running) {
@@ -891,6 +933,8 @@ public class Game implements Runnable {
             + "   (0.5 - 3.0, text size)", 10, standardSize, Color.WHITE);
         Terminal.print("[-] typingSounds  = " + Settings.typingSounds
             + "   (true / false)", 10, standardSize, Color.WHITE);
+        Terminal.print("[-] fastBoot      = " + Settings.fastBoot
+            + "   (true / false, skip loading screens)", 10, standardSize, Color.WHITE);
         Terminal.print("[-] crt           = " + Settings.crtName(Settings.crt)
             + "   (off / light / full)", 10, standardSize, Color.WHITE);
         Terminal.print("[-] crtQuality    = " + Settings.crtQuality
@@ -930,6 +974,9 @@ public class Game implements Runnable {
                     Settings.typingSounds = Boolean.parseBoolean(value);
                     Settings.apply();
                     break;
+                case "fastboot":
+                    Settings.fastBoot = Boolean.parseBoolean(value);
+                    break;
                 case "crt": {
                     CrtShader.Preset preset = Settings.parseCrt(value);
                     if (preset == null) {
@@ -962,7 +1009,14 @@ public class Game implements Runnable {
         return String.format("%.2f", value);
     }
 
-    private void pause(long millis) throws InterruptedException {
+    public void pause(long millis) throws InterruptedException {
         Thread.sleep(millis);
+    }
+
+    /** A faked load wait. fastBoot skips it, but the screen still updates. */
+    private void loadingPause(long millis) throws InterruptedException {
+        if (!Settings.fastBoot) {
+            pause(millis);
+        }
     }
 }

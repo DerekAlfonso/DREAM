@@ -41,7 +41,9 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
                 }
                 break;
             case KeyEvent.VK_END:
-                if (Terminal.isAwaitingInput()) {
+                // End gets the log back to the newest text. It only moves the
+                // input caret when the log is already there and a prompt is up.
+                if (Terminal.isAwaitingInput() && !Terminal.isScrolledBack()) {
                     Terminal.moveCursorToEnd();
                 } else {
                     scrollBy(Integer.MIN_VALUE);

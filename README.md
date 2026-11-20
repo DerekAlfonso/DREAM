@@ -128,10 +128,7 @@ pom.xml                          Maven build, produces target/dream.jar
 run.bat / run.sh                 Launchers
 src/main/java/dream/
   Main.java                      Entry point, window setup, shutdown
-  Game.java                      Loop, input and boot menu, on its own thread
-  Story.java                     The ProjectDream story and CYA checkpoints
-  Minigames.java                 Rock-paper-scissors, hangman, dungeon menu
-  Screens.java                   Settings and credits screens
+  Game.java                      Loop, input, story, minigames and boot menu
   Terminal.java                  Typing animation, word wrap, input, scrolling
   CurveCanvas.java               4:3 viewport, offscreen scene, barrel distortion
   CrtShader.java                 Software CRT filter: warp, scanlines, mask, bloom
