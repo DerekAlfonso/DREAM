@@ -1,11 +1,11 @@
 #D.R.E.A.M save state
-#Thu Nov 19 21:03:15 CST 2026
-CYALocation=
+#Thu Nov 19 22:14:22 CST 2026
+CYALocation=cemetary
 cpuName=REM
 favoriteColor=Purple
-purpose=
+purpose=peace
 saveVersion=2
-spokenToMysteriousMan=false
-stage=rps
+spokenToMysteriousMan=true
+stage=cya
 takenObjects=
 username=Aesfo

@@ -265,8 +265,6 @@ public class Game implements Runnable {
 
             Terminal.print("alright, alright, you're right, we can move onto something more interesting", 20, standardSize, Color.WHITE);
             Terminal.print("how about something with a little more complexity..", 20, standardSize, Color.WHITE);
-            pause(1000);
-            Terminal.divider();
             Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
             pause(500);
             Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
@@ -331,7 +329,6 @@ public class Game implements Runnable {
         }
 
         Terminal.print("good game :)", 20, 15, Color.GREEN);
-        Terminal.blankLine();
     }
 
     /** Turns player input into one of the three moves, or null if it is not one. */
@@ -436,7 +433,6 @@ public class Game implements Runnable {
             }
         }
 
-        Terminal.blankLine();
     }
 
     /** Returns false if the player stops during the round. */
@@ -640,10 +636,11 @@ public class Game implements Runnable {
 
     private boolean playDungeonCrawler() throws InterruptedException
     {
+        pause(1000);
+        Terminal.divider();
         Terminal.print("Loading Dungeon Crawler..", 20, 15, Color.WHITE);
         loadingPause(5000);
         Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
-        Terminal.blankLine();
         Terminal.print("[1] Campaign Mode", 20, 15, Color.WHITE);
         Terminal.print("[2] Endless Mode", 20, 15, Color.WHITE);
 
@@ -674,7 +671,6 @@ public class Game implements Runnable {
     private void playCampaignMode() throws InterruptedException {
         Terminal.print("Campaign Mode is not implemented yet.",
             20, 15, Color.CYAN);
-        Terminal.blankLine();
     }
 
     /** Starts a run of the endless dungeon. */
@@ -718,7 +714,6 @@ public class Game implements Runnable {
             Terminal.print("the rain patters endlessly against your skin, its hard to make out directions", 15, standardSize, Color.WHITE);
             Terminal.print("you find yourself walking down a path", 15, standardSize, Color.WHITE);
             Terminal.print("you were looking for...", 15, standardSize, Color.GREEN);
-            Terminal.blankLine();
             Terminal.print("[1] - answers", 15, standardSize, Color.GREEN);
             Terminal.print("[2] - peace", 15, standardSize, Color.GREEN);
             Terminal.print("[3] - vengeance", 15, standardSize, Color.GREEN);

@@ -101,7 +101,7 @@ final class Scene {
     private void listObjects() {
         boolean any = false;
         for (Interactable object : objects) {
-            if (SaveState.hasItem(object.id)) {
+            if (object.isHidden() || SaveState.hasItem(object.id)) {
                 continue;
             }
             Terminal.print(TextSpan.highlighting("- " + object.displayName,
@@ -117,14 +117,17 @@ final class Scene {
         Interactable object = find(target);
         if (object == null) {
             Terminal.print("you don't see that here.", 15, Game.standardSize, Color.RED);
-        } else if (SaveState.hasItem(object.id)) {
+            return;
+        }
+        if (SaveState.hasItem(object.id)) {
             Terminal.print(TextSpan.highlighting("you are carrying the "
                 + object.displayName + ".", object.displayName, NAME),
                 15, Game.standardSize, Color.WHITE);
-        } else {
-            Terminal.print(TextSpan.highlighting(object.lookText,
-                object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
         }
+        // A carried item still describes itself, so its text is not lost once it
+        // leaves the scene and only the inventory can reach it.
+        Terminal.print(TextSpan.highlighting(object.lookText,
+            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
     }
 
     private void interact(String target) {
@@ -229,7 +232,7 @@ final class Scene {
     }
 
     private void printHelp() {
-        Terminal.print("COMMANDS", 15, Game.standardSize, Color.CYAN);
+        Terminal.print("COMMANDS -----------", 15, Game.standardSize, Color.CYAN);
         printCommand("look", "list what is here");
         printCommand("look [at] <thing>", "examine something");
         printCommand("interact <thing>", "talk to or use something");
@@ -242,15 +245,22 @@ final class Scene {
         printCommand("leave", "finish exploring");
         printCommand("back | return | home", "aliases for leave");
         printCommand("quit | exit", "quit the game (with confirmation)");
+        Terminal.print("------------------", 15, Game.standardSize, Color.GREEN);
     }
+
+    /**
+     * Column the arrows start in: the longest syntax ("back | return | home")
+     * plus a gap, so the arrow never touches the command or its description.
+     */
+    private static final int SYNTAX_WIDTH = 22;
 
     private static void printCommand(String syntax, String description) {
         StringBuilder line = new StringBuilder(syntax);
-        while (line.length() < 24) {
+        while (line.length() < SYNTAX_WIDTH) {
             line.append(' ');
         }
-        line.append(description);
-        Terminal.print(line.toString(), 15, Game.standardSize, Color.WHITE);
+        line.append("--> ").append(description);
+        Terminal.print(line.toString(), 1, Game.standardSize, Color.GREEN);
     }
 
     private void printTargetUsage(String verb, String target) {
@@ -268,7 +278,7 @@ final class Scene {
             target = target.substring(4).trim();
         }
         for (Interactable object : objects) {
-            if (object.matches(target)) {
+            if (!object.isHidden() && object.matches(target)) {
                 return object;
             }
         }

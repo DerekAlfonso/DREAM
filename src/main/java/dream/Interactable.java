@@ -3,6 +3,7 @@ package dream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * One thing in a scene the player can look at, interact with or take.
@@ -24,6 +25,9 @@ final class Interactable {
     final Runnable onInteract;
     final Runnable onTake;
 
+    /** The object is out of the scene while this holds; null means it never is. */
+    private final BooleanSupplier hiddenWhen;
+
     private Interactable(Builder builder) {
         this.id = builder.id;
         this.displayName = builder.displayName;
@@ -34,6 +38,12 @@ final class Interactable {
         this.takeable = builder.takeable;
         this.onInteract = builder.onInteract;
         this.onTake = builder.onTake;
+        this.hiddenWhen = builder.hiddenWhen;
+    }
+
+    /** True while the object is absent from its scene. */
+    boolean isHidden() {
+        return hiddenWhen != null && hiddenWhen.getAsBoolean();
     }
 
     boolean matches(String query) {
@@ -63,9 +73,20 @@ final class Interactable {
         private boolean takeable;
         private Runnable onInteract;
         private Runnable onTake;
+        private BooleanSupplier hiddenWhen;
 
         private Builder(String id) {
             this.id = id;
+        }
+
+        /**
+         * Hides the object while the condition holds, so it stops being listed,
+         * examined, interacted with or taken. For things that leave the scene or
+         * only turn up after a story beat.
+         */
+        Builder hiddenWhen(BooleanSupplier condition) {
+            hiddenWhen = condition;
+            return this;
         }
 
         /** The first alias is the name shown to the player. */
