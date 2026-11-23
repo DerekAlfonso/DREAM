@@ -39,11 +39,16 @@ final class Cemetery {
     }
 
     static CyaLocation play(Scene.Input input) throws InterruptedException {
+        return new Scene(CyaLocation.CEMETARY, "The Cemetary", Cemetery::describeArea, OBJECTS)
+            .play(input);
+    }
+
+    /** Built fresh each time, so a LOOK after the man leaves no longer mentions him. */
+    private static List<TextSpan> describeArea() {
         String description = "You walk into a cemetary, it smells like wet dirt and feels like empty promises.";
         if (!SaveState.spokenToMysteriousMan && !SaveState.hasItem("mysteriousMan")) {
             description += " The vague silhouette of a man is stood motionless at the edge of the cemetary, you can't make out anything about him.";
         }
-        return new Scene(CyaLocation.CEMETARY, "The Cemetary",
-            TextSpan.highlighting(description, "man", Scene.NAME), OBJECTS).play(input);
+        return TextSpan.highlighting(description, "man", Scene.NAME);
     }
 }

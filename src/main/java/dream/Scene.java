@@ -2,6 +2,7 @@ package dream;
 
 import java.awt.Color;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * A CYA location: a title, an opening description and the objects in it.
@@ -21,18 +22,22 @@ final class Scene {
 
     private final CyaLocation here;
     private final String title;
-    private final List<TextSpan> description;
+    private final Supplier<List<TextSpan>> description;
     private final List<Interactable> objects;
 
     Scene(CyaLocation here, String title, String description, List<Interactable> objects) {
-        this(here, title, List.of(TextSpan.of(description)), objects);
+        this(here, title, () -> List.of(TextSpan.of(description)), objects);
     }
 
-    /** Same, for an area whose description points at something in it. */
-    Scene(CyaLocation here, String title, List<TextSpan> description, List<Interactable> objects) {
+    /**
+     * Same, for a description that changes with the story: it is built on each
+     * print, so a bare LOOK never repeats text that no longer applies.
+     */
+    Scene(CyaLocation here, String title, Supplier<List<TextSpan>> description,
+            List<Interactable> objects) {
         this.here = here;
         this.title = title;
-        this.description = List.copyOf(description);
+        this.description = description;
         this.objects = List.copyOf(objects);
     }
 
@@ -43,7 +48,7 @@ final class Scene {
      */
     CyaLocation play(Input input) throws InterruptedException {
         Terminal.print(title, 1, Game.standardSize + 4, Color.GRAY);
-        Terminal.print(description, 15, Game.standardSize, Color.WHITE);
+        Terminal.print(description.get(), 15, Game.standardSize, Color.WHITE);
         Terminal.print("type HELP for all commands, or LOOK to look around.",
             15, Game.standardSize, Color.GREEN);
 
@@ -65,7 +70,7 @@ final class Scene {
                         target = target.substring(3).trim();
                     }
                     if (target.isEmpty()) {
-                        listObjects();
+                        describeArea();
                     } else {
                         look(target);
                     }
@@ -96,6 +101,12 @@ final class Scene {
                     break;
             }
         }
+    }
+
+    /** Bare LOOK: repeat where the player is, then what is here to see. */
+    private void describeArea() {
+        Terminal.print(description.get(), 15, Game.standardSize, Color.WHITE);
+        listObjects();
     }
 
     private void listObjects() {
@@ -233,7 +244,7 @@ final class Scene {
 
     private void printHelp() {
         Terminal.print("COMMANDS -----------", 15, Game.standardSize, Color.CYAN);
-        printCommand("look", "list what is here");
+        printCommand("look", "describe the area and list what is here");
         printCommand("look [at] <thing>", "examine something");
         printCommand("interact <thing>", "talk to or use something");
         printCommand("talk <thing>", "alias for interact <thing>");
