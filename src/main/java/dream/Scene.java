@@ -137,8 +137,10 @@ final class Scene {
         }
         // A carried item still describes itself, so its text is not lost once it
         // leaves the scene and only the inventory can reach it.
-        Terminal.print(TextSpan.highlighting(object.lookText,
-            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
+        List<TextSpan> description = object.lookSpans != null
+            ? object.lookSpans
+            : TextSpan.highlighting(object.lookText, object.displayName, NAME);
+        Terminal.print(description, 15, Game.standardSize, Color.WHITE);
     }
 
     private void interact(String target) {

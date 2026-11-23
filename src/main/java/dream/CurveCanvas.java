@@ -382,6 +382,29 @@ public class CurveCanvas extends JPanel {
         }
     }
 
+    /** How far outside the picture a line's baseline may sit before it is skipped. */
+    private static final int CULL_MARGIN = 120;
+
+    /**
+     * True when a line at {@code baselineY} is close enough to a viewport of
+     * {@code viewHeight} to be painted. Outside this the glyphs cannot land in
+     * the picture.
+     */
+    private static boolean isPaintable(int baselineY, int viewHeight) {
+        return baselineY >= -CULL_MARGIN && baselineY <= viewHeight + CULL_MARGIN;
+    }
+
+    /**
+     * True when this line would be drawn at the canvas's current size, so the
+     * terminal can stop animating text that has scrolled out of the picture.
+     * Before the first layout there is no picture to compare against, so
+     * everything counts as visible.
+     */
+    boolean paints(TextData line) {
+        int height = getViewHeight();
+        return height <= 0 || isPaintable(line.y, height);
+    }
+
     /**
      * Draws each line one character at a time, nudging every glyph along a
      * quadratic curve so the whole screen appears to bulge outwards. A glyph
@@ -393,7 +416,7 @@ public class CurveCanvas extends JPanel {
             int shown = td.visibleLength();
             // Skip anything scrolled well clear of the viewport. With per-glyph
             // transforms this matters a lot once the log gets long.
-            if (td.y < -120 || td.y > height + 120 || shown == 0) {
+            if (!isPaintable(td.y, height) || shown == 0) {
                 continue;
             }
 

@@ -19,6 +19,9 @@ final class Interactable {
     final String displayName;
     final List<String> names;
     final String lookText;
+
+    /** Styled description for an object that needs more than plain text. */
+    final List<TextSpan> lookSpans;
     final String interactText;
     final String takeText;
     final boolean takeable;
@@ -33,6 +36,7 @@ final class Interactable {
         this.displayName = builder.displayName;
         this.names = List.copyOf(builder.names);
         this.lookText = builder.lookText;
+        this.lookSpans = builder.lookSpans == null ? null : List.copyOf(builder.lookSpans);
         this.interactText = builder.interactText;
         this.takeText = builder.takeText;
         this.takeable = builder.takeable;
@@ -68,6 +72,7 @@ final class Interactable {
         private final List<String> names = new ArrayList<>();
         private String displayName;
         private String lookText;
+        private List<TextSpan> lookSpans;
         private String interactText;
         private String takeText;
         private boolean takeable;
@@ -100,6 +105,17 @@ final class Interactable {
 
         Builder look(String text) {
             lookText = text;
+            lookSpans = null;
+            return this;
+        }
+
+        /**
+         * A styled description, for runs that need their own colour or a
+         * glitched passage that stays unreadable.
+         */
+        Builder look(List<TextSpan> spans) {
+            lookSpans = List.copyOf(spans);
+            lookText = null;
             return this;
         }
 
@@ -138,7 +154,7 @@ final class Interactable {
             if (displayName == null) {
                 displayName = id;
             }
-            if (lookText == null) {
+            if (lookText == null && lookSpans == null) {
                 lookText = "You look at the " + displayName + ". Nothing special.";
             }
             if (interactText == null) {

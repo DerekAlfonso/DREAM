@@ -63,6 +63,9 @@ public final class Terminal {
     /** A print speed of zero reveals a whole line at once instead of typing it. */
     private static final int INSTANT_SPEED = 0;
 
+    /** How often the shared glitch clock checks which runs are due to change. */
+    private static final int GLITCH_TICK_MS = 25;
+
     private static CurveCanvas canvas;
     private static Font baseFont = new Font(Font.MONOSPACED, Font.PLAIN, 15);
 
@@ -74,6 +77,10 @@ public final class Terminal {
     private static Timer typingTimer = null;
     private static TextData typingLine = null;
     private static MessageRequest typingRequest = null;
+
+    /** Unreadable runs being tracked; one timer drives the ones in the picture. */
+    private static final List<TextGlitch> glitches = new ArrayList<>();
+    private static Timer glitchTimer = null;
 
     /** Shared by every wrapped line produced by one print() call. */
     private static int nextPrintId = 0;
@@ -121,6 +128,7 @@ public final class Terminal {
         final String text;
         final Color[] charColors;
         final boolean[] charBold;
+        final GlitchStyle[] charGlitch;
         final int speed;
         final int fontSize;
         final Color color;
@@ -129,11 +137,12 @@ public final class Terminal {
         final int printId;
 
         MessageRequest(String text, Color[] charColors, boolean[] charBold,
-                       int speed, int fontSize, Color color,
+                       GlitchStyle[] charGlitch, int speed, int fontSize, Color color,
                        int pushUpAmount, Font font, int printId) {
             this.text = text;
             this.charColors = charColors;
             this.charBold = charBold;
+            this.charGlitch = charGlitch;
             this.speed = speed;
             this.fontSize = fontSize;
             this.color = color;
@@ -245,6 +254,7 @@ public final class Terminal {
                 (float) scaledFontSize(line.size));
         }
         canvas.repaint();
+        syncGlitches();
     }
 
     // --------------------------------------------------------------- output
@@ -427,6 +437,7 @@ public final class Terminal {
         int[] advance = new int[plain.length()];
         Color[] charColors = new Color[plain.length()];
         boolean[] charBold = new boolean[plain.length()];
+        GlitchStyle[] charGlitch = new GlitchStyle[plain.length()];
 
         int at = 0;
         for (TextSpan span : spans) {
@@ -436,6 +447,7 @@ public final class Terminal {
                 advance[at] = runMetrics.charWidth(runText.charAt(i));
                 charColors[at] = span.color();
                 charBold[at] = span.bold();
+                charGlitch[at] = span.glitch();
                 at++;
             }
         }
@@ -452,6 +464,7 @@ public final class Terminal {
             messageQueue.add(new MessageRequest(plain.substring(start, end),
                 Arrays.copyOfRange(charColors, start, end),
                 Arrays.copyOfRange(charBold, start, end),
+                Arrays.copyOfRange(charGlitch, start, end),
                 speed, fontSize, color, gap, font, printId));
         }
 
@@ -510,7 +523,10 @@ public final class Terminal {
         typingLine = newLine;
 
         if (req.speed == INSTANT_SPEED) {
-            newLine.setText(req.text);
+            // Reveal, do not setText: an instant line may carry a glitched run
+            // that has already replaced its real wording.
+            newLine.revealAll();
+            startGlitchesFor(newLine);
             canvas.repaint();
             finishMessage();
             return;
@@ -530,6 +546,9 @@ public final class Terminal {
                 canvas.repaint();
             } else {
                 timer.stop();
+                // The line is finally all on screen, so an unreadable run on it
+                // can begin moving now instead of hours before it was visible.
+                startGlitchesFor(newLine);
                 finishMessage();
             }
         });
@@ -551,10 +570,31 @@ public final class Terminal {
         newLine.charColors = req.charColors;
         newLine.charBold = req.charBold;
         newLine.reveal(0);
+        // Scramble before the line joins the layer, so its real wording is
+        // never painted even for one frame. The run does not start moving until
+        // the line is fully revealed (see startGlitchesFor).
+        TextGlitch glitch = TextGlitch.attach(newLine, req.charGlitch);
         activeLines.add(newLine);
         canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, newLine);
+        if (glitch != null && glitch.animates()) {
+            glitches.add(glitch);
+        }
         trimHistory();
         return newLine;
+    }
+
+    /**
+     * Starts the clock on every unreadable run belonging to a line that is now
+     * fully revealed. Runs on the event thread.
+     */
+    private static void startGlitchesFor(TextData line) {
+        long now = System.currentTimeMillis();
+        for (TextGlitch glitch : glitches) {
+            if (glitch.line() == line) {
+                glitch.start(now);
+            }
+        }
+        syncGlitches();
     }
 
     /** Runs on the event thread when a line has finished, normally or skipped. */
@@ -592,12 +632,15 @@ public final class Terminal {
         }
         if (typingLine != null) {
             typingLine.revealAll();
+            startGlitchesFor(typingLine);
         }
 
         while (!messageQueue.isEmpty()
             && messageQueue.peek().printId == printId) {
             MessageRequest rest = messageQueue.poll();
-            addMessageLine(rest).revealAll();
+            TextData restLine = addMessageLine(rest);
+            restLine.revealAll();
+            startGlitchesFor(restLine);
         }
 
         canvas.repaint();
@@ -625,7 +668,95 @@ public final class Terminal {
         if (activeLines.size() > MAX_RETAINED_LINES) {
             activeLines.subList(0, activeLines.size() - MAX_RETAINED_LINES).clear();
             canvas.pruneText(MAX_RETAINED_LINES);
+            // Pruning can drop the line under a parked run, and no tick will be
+            // along to clear it while everything else is off screen.
+            glitches.removeIf(g -> !activeLines.contains(g.line()));
         }
+    }
+
+    /** True while the canvas would actually paint the line. */
+    private static boolean isOnScreen(TextData line) {
+        return canvas == null || canvas.paints(line);
+    }
+
+    private static void ensureGlitchTimer() {
+        if (glitchTimer != null) {
+            return;
+        }
+        glitchTimer = new Timer(GLITCH_TICK_MS, e -> tickGlitches());
+        glitchTimer.setCoalesce(true);
+        glitchTimer.start();
+    }
+
+    /**
+     * Re-checks every armed run after something moved it: runs that left the
+     * picture are parked where they stand, and the shared clock starts if one is
+     * visible and may move. Without the parking here, a run scrolled away while
+     * the clock was already stopped would spend its burst unseen.
+     */
+    private static void syncGlitches() {
+        long now = System.currentTimeMillis();
+        boolean anyVisible = false;
+        for (TextGlitch glitch : glitches) {
+            if (!glitch.isStarted()) {
+                continue;
+            }
+            if (isOnScreen(glitch.line())) {
+                anyVisible = true;
+            } else {
+                glitch.pause(now);
+            }
+        }
+        if (anyVisible) {
+            ensureGlitchTimer();
+        }
+    }
+
+    /**
+     * Shared animation tick. Each run decides its own irregular next step, so
+     * this clock only wakes up often enough to notice when one is due.
+     *
+     * <p>Runs on text the canvas has scrolled out of the picture are parked and
+     * the clock stops entirely while none of them is visible, so a passage left
+     * in the scrollback stops costing frames.
+     */
+    private static void tickGlitches() {
+        long now = System.currentTimeMillis();
+        boolean changed = false;
+        boolean anyVisible = false;
+        for (TextGlitch glitch : glitches) {
+            if (!isOnScreen(glitch.line())) {
+                glitch.pause(now);
+                continue;
+            }
+            glitch.resume(now);
+            if (!glitch.isStarted()) {
+                continue;
+            }
+            anyVisible = true;
+            if (glitch.isDue(now)) {
+                glitch.step(now);
+                changed = true;
+            }
+        }
+        if (changed) {
+            canvas.repaint();
+        }
+        if (!anyVisible) {
+            stopGlitchClock();
+        }
+    }
+
+    private static void stopGlitchClock() {
+        if (glitchTimer != null) {
+            glitchTimer.stop();
+            glitchTimer = null;
+        }
+    }
+
+    private static void stopGlitches() {
+        glitches.clear();
+        stopGlitchClock();
     }
 
     // ----------------------------------------------------------- idle waiting
@@ -921,6 +1052,8 @@ public final class Terminal {
 
         scrollOffset += clamped;
         canvas.scrollAllText(clamped);
+        // Scrolling can carry a run into or out of the picture.
+        syncGlitches();
         return true;
     }
 
@@ -940,6 +1073,7 @@ public final class Terminal {
     /** Wipes the screen, for returning to the boot menu. */
     public static void clear() {
         SwingUtilities.invokeLater(() -> {
+            stopGlitches();
             messageQueue.clear();
             activeLines.clear();
             canvas.pruneText(0);
