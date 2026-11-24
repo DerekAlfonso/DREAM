@@ -15,16 +15,20 @@ enum CyaLocation {
         "outer", "outer shack", "outer decrepit shack"),
     SHACK_INNER("shackInner", "The Inner Decrepit Shack",
         "inner", "inner shack", "inner decrepit shack"),
+    CELLAR("cellar", "The Cellar", "basement", "room below", "hatch room"),
     HOUSE("house", "The House"); 
 
     /**
-     * Every area reachable directly from each area. The inner shack is
-     * deliberately only reachable from the outer shack.
+     * Every area reachable with GO from each area. The inner shack is
+     * deliberately only reachable from the outer shack, and it can only lead
+     * back there. The cellar has no GO exits at all: the hatch is the way in
+     * and the way out, so no GO route can reach the inner shack from it.
      */
     private static final Map<CyaLocation, List<CyaLocation>> LINKS = Map.of(
         CEMETARY, List.of(SHACK_OUTER, HOUSE),
         SHACK_OUTER, List.of(CEMETARY, SHACK_INNER, HOUSE),
         SHACK_INNER, List.of(SHACK_OUTER),
+        CELLAR, List.of(),
         HOUSE, List.of(CEMETARY, SHACK_OUTER)
     );
 

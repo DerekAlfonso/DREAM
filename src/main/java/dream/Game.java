@@ -279,7 +279,7 @@ public class Game implements Runnable {
             Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
             AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
             Terminal.print(". . .", 600, standardSize, Color.WHITE);
-            Terminal.print("that's the closest thing to a drumroll I could find in my files", 20, standardSize, Color.WHITE);
+            Terminal.print("I can't find a drumroll in my files, just imagine what it would sound like", 20, standardSize, Color.WHITE);
             Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
             Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
         }
@@ -290,7 +290,7 @@ public class Game implements Runnable {
 
         // The story is over, so clear the save and start the next run clean.
         SaveState.reset();
-        Terminal.print("that's the end. your save has been cleared, so the next run starts fresh.",
+        Terminal.print("that's the end. your save has been cleared.",
             20, standardSize, Color.GREEN);
         pause(2500);
         Terminal.clear();
@@ -703,9 +703,8 @@ public class Game implements Runnable {
 
         Terminal.blankLine();
         Terminal.print("Loading CYA . . .", 1, standardSize, Color.WHITE);
-        loadingPause(5000);
         Terminal.print("-----------------", 1, standardSize, Color.WHITE);
-        Terminal.blankLine();
+        loadingPause(5000);
         Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
         Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, NamedColors.display(SaveState.favoriteColor));
 
@@ -724,7 +723,7 @@ public class Game implements Runnable {
         Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
         Terminal.print("as you wade through the forest you happen upon an old cemetary", 15, standardSize, Color.WHITE);
         Terminal.print("-----------------", 1, standardSize, Color.WHITE);
-        goToCemetary();
+        goTo(CyaLocation.CEMETARY);
     }
 
     /** Picks the CYA back up at the last place it saved, or starts it from the top. */
@@ -741,59 +740,24 @@ public class Game implements Runnable {
         goTo(SaveState.cyaLocation);
     }
 
-    /** Enters one of the CYA areas. */
-    private void goTo(CyaLocation location) throws InterruptedException {
-        switch (location) {
-            case CEMETARY:
-                goToCemetary();
-                break;
-            case SHACK_OUTER:
-                goToDecrepitShackOuter();
-                break;
-            case SHACK_INNER:
-                goToDecrepitShackInner();
-                break;
-            case HOUSE:
-                goToHouse();
-                break;
-        }
-    }
-
     /**
-     * The cemetary scene. Cemetery owns the description and the objects here, so
-     * the ask at the end of it works off that list and always offers whatever is
-     * actually in the scene.
+     * Enters one of the CYA areas and plays it until the player leaves. A GO
+     * returns the next area, so travel loops here instead of unwinding to the
+     * end of the story: only LEAVE finishes the CYA.
      */
-    private void goToCemetary() throws InterruptedException
-    {
-        SaveState.cyaLocation = CyaLocation.CEMETARY;
-        SaveState.save();
-
-        CyaLocation destination = Cemetery.play(this::ask);
-        if (destination != null) {
-            goTo(destination);
+    private void goTo(CyaLocation location) throws InterruptedException {
+        CyaLocation current = location;
+        while (current != null) {
+            SaveState.cyaLocation = current;
+            SaveState.save();
+            current = switch (current) {
+                case CEMETARY -> Cemetery.play(this::ask);
+                case SHACK_OUTER -> ShackOuter.play(this::ask);
+                case SHACK_INNER -> ShackInner.play(this::ask);
+                case HOUSE -> House.play(this::ask);
+                case CELLAR -> Cellar.play(this::ask);
+            };
         }
-    }
-
-    private void goToDecrepitShackOuter() throws InterruptedException
-    {
-        Terminal.print("Outer shack gameplay", 15, standardSize, Color.RED);
-        SaveState.cyaLocation = CyaLocation.SHACK_OUTER;
-        SaveState.save();
-    }
-
-    private void goToDecrepitShackInner() throws InterruptedException
-    {
-        Terminal.print("Inner Shack gameplay", 15, standardSize, Color.RED);
-        SaveState.cyaLocation = CyaLocation.SHACK_INNER;
-        SaveState.save();
-    }
-
-    private void goToHouse() throws InterruptedException
-    {
-        Terminal.print("house (no not the doctor from the TV show) gameplay", 15, standardSize, Color.RED);
-        SaveState.cyaLocation = CyaLocation.HOUSE;
-        SaveState.save();
     }
 
     /*

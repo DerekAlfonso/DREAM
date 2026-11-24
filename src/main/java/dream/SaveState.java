@@ -31,6 +31,15 @@ public final class SaveState {
     /** True once the player has spoken to the man at the cemetary. */
     public static boolean spokenToMysteriousMan = false;
 
+    /** True once the axe has broken open the shack's floor hatch. */
+    public static boolean hatchBroken = false;
+
+    /**
+     * True once the cellar's iron wheel has been turned far enough. This is
+     * also what unlocks the house.
+     */
+    public static boolean cellarPuzzleSolved = false;
+
     /**
      * The inventory: ids of the objects the player has taken, in the order
      * they were picked up. Saved with the rest of the run.
@@ -81,6 +90,9 @@ public final class SaveState {
         cyaLocation = CyaLocation.fromId(props.getProperty("CYALocation"));
         spokenToMysteriousMan = Boolean.parseBoolean(
             props.getProperty("spokenToMysteriousMan", "false"));
+        hatchBroken = Boolean.parseBoolean(props.getProperty("hatchBroken", "false"));
+        cellarPuzzleSolved = Boolean.parseBoolean(
+            props.getProperty("cellarPuzzleSolved", "false"));
         takenObjects.clear();
         String taken = props.getProperty("takenObjects", "");
         for (String id : taken.split(",")) {
@@ -109,6 +121,8 @@ public final class SaveState {
         props.setProperty("purpose", nullToEmpty(purpose));
         props.setProperty("CYALocation", cyaLocation == null ? "" : cyaLocation.id);
         props.setProperty("spokenToMysteriousMan", String.valueOf(spokenToMysteriousMan));
+        props.setProperty("hatchBroken", String.valueOf(hatchBroken));
+        props.setProperty("cellarPuzzleSolved", String.valueOf(cellarPuzzleSolved));
         props.setProperty("takenObjects", String.join(",", takenObjects));
         props.setProperty("stage", nullToEmpty(stage));
 
@@ -147,6 +161,8 @@ public final class SaveState {
         purpose = null;
         cyaLocation = null;
         spokenToMysteriousMan = false;
+        hatchBroken = false;
+        cellarPuzzleSolved = false;
         takenObjects.clear();
         stage = null;
         save();

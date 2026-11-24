@@ -9,26 +9,27 @@ final class ShackOuter {
         Interactable.builder("shackDoor")
             .names("shack door", "door", "crooked door")
             .look("The door hangs open on one hinge. The wood is soft with rot, but it still moves when you push it.")
-            .interact("You push the door. It swings inward with a sound like a held breath.")
+            .interact("You push the door. It swings inward with a sound like a held breath, and you step through.")
+            .travelTo(() -> CyaLocation.SHACK_INNER)
             .refuseTake("You could take the door, but then the shack would be looking at you.")
             .build(),
         Interactable.builder("boards")
             .names("boards", "window", "boarded window")
             .look("The window is boarded shut from the inside. The nails are new.")
             .interact("You knock on the boards. Something knocks back, once, and then stops.")
-            .refuseTake("The boards are nailed down. You would need a crowbar and a worse idea.")
+            .refuseTake("The boards are nailed down. You would need a crowbar and a little more strength.")
+            .build(),
+        Interactable.builder("axe")
+            .names("axe", "wood axe", "hatchet")
+            .look("A remarkably nice Axe, the wood feels premium under your fingers and the metal head leaves nothing to be desired")
+            .interact("You test the edge with your thumb. It would break something, given a reason.")
+            .take("You take the axe. The weight of it makes the shack feel smaller.")
             .build(),
         Interactable.builder("rustyLantern")
             .names("rusty lantern", "lantern")
             .look("A rusty lantern hangs from a nail by the door. There is still a little oil in it.")
             .interact("The lantern is cold. The oil inside is still liquid.")
             .take("You take the rusty lantern. It is heavier than it looks.")
-            .build(),
-        Interactable.builder("weatherVane")
-            .names("weather vane", "weathervane", "vane")
-            .look("A weather vane shaped like a hand points at the shack, no matter which way the wind blows.")
-            .interact("You flick the weather vane. It turns to face you and stops.")
-            .refuseTake("The weather vane is nailed to the roof. It points at you now.")
             .build()
     );
 

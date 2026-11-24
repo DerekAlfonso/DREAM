@@ -76,9 +76,13 @@ final class Scene {
                     }
                     break;
                 case "interact":
-                case "talk":
-                    interact(target);
+                case "talk": {
+                    CyaLocation destination = interact(target);
+                    if (destination != null) {
+                        return destination;
+                    }
                     break;
+                }
                 case "take":
                     take(target);
                     break;
@@ -137,27 +141,31 @@ final class Scene {
         }
         // A carried item still describes itself, so its text is not lost once it
         // leaves the scene and only the inventory can reach it.
-        List<TextSpan> description = object.lookSpans != null
-            ? object.lookSpans
-            : TextSpan.highlighting(object.lookText, object.displayName, NAME);
-        Terminal.print(description, 15, Game.standardSize, Color.WHITE);
+        Terminal.print(object.lookSpans(), 15, Game.standardSize, Color.WHITE);
     }
 
-    private void interact(String target) {
+    /**
+     * Runs an object's interaction and prints the line it returns. Returns where
+     * the object moved the player, or null when the player stays in the area:
+     * this is how a door or a hatch is a way out rather than a GO target.
+     */
+    private CyaLocation interact(String target) {
         if (target.isEmpty()) {
             printTargetUsage("interact", null);
-            return;
+            return null;
         }
         Interactable object = find(target);
         if (object == null) {
             printTargetUsage("interact", target);
-            return;
+            return null;
         }
-        if (object.onInteract != null) {
-            object.onInteract.run();
-        }
-        Terminal.print(TextSpan.highlighting(object.interactText,
+        Terminal.print(TextSpan.highlighting(object.interact(),
             object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
+        CyaLocation destination = object.travel();
+        if (destination != null) {
+            Terminal.blankLine();
+        }
+        return destination;
     }
 
     private void take(String target) {
@@ -211,6 +219,15 @@ final class Scene {
         if (!CyaLocation.neighbours(here).contains(destination)) {
             Terminal.print("you can't get to " + destination.displayName
                 + " from here. use GO to see where you can go.",
+                15, Game.standardSize, Color.RED);
+            return null;
+        }
+
+        // The house only opens once the cellar puzzle has been solved.
+        if (destination == CyaLocation.HOUSE && !SaveState.cellarPuzzleSolved) {
+            Terminal.print("you try the doors of the house. every one of them is locked,"
+                + " and you can't find an unlocked door. the shack behind you settles, and its floor gives"
+                + " a little under your boots, as if there were more room beneath it than above.",
                 15, Game.standardSize, Color.RED);
             return null;
         }

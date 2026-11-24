@@ -25,6 +25,7 @@ final class ObjectCatalog {
         addAll(byId, Cemetery.objects());
         addAll(byId, ShackOuter.objects());
         addAll(byId, ShackInner.objects());
+        addAll(byId, Cellar.objects());
         addAll(byId, House.objects());
         return byId;
     }

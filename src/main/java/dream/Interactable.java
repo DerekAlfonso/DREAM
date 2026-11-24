@@ -4,29 +4,37 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * One thing in a scene the player can look at, interact with or take.
  *
  * <p>Objects are declared once in the scene's list, so adding a new one is a
- * single builder entry rather than new command code. Optional callbacks run
- * when the player interacts with or takes the object, which is how story flags
- * are set.
+ * single builder entry rather than new command code. An interaction does its
+ * work when it runs and returns the line the player reads, so a story flag and
+ * the text that depends on it are written in one place.
  */
 final class Interactable {
 
     final String id;
     final String displayName;
     final List<String> names;
-    final String lookText;
+
+    /** Description built when it is read, for text that changes with the story. */
+    private final Supplier<String> lookText;
 
     /** Styled description for an object that needs more than plain text. */
-    final List<TextSpan> lookSpans;
-    final String interactText;
+    private final List<TextSpan> lookSpans;
+
+    /** Runs the interaction and returns the line to print. */
+    private final Supplier<String> interaction;
+
     final String takeText;
     final boolean takeable;
-    final Runnable onInteract;
     final Runnable onTake;
+
+    /** Where the interaction moves the player; null means the player stays. */
+    private final Supplier<CyaLocation> travel;
 
     /** The object is out of the scene while this holds; null means it never is. */
     private final BooleanSupplier hiddenWhen;
@@ -37,17 +45,37 @@ final class Interactable {
         this.names = List.copyOf(builder.names);
         this.lookText = builder.lookText;
         this.lookSpans = builder.lookSpans == null ? null : List.copyOf(builder.lookSpans);
-        this.interactText = builder.interactText;
+        this.interaction = builder.interaction;
         this.takeText = builder.takeText;
         this.takeable = builder.takeable;
-        this.onInteract = builder.onInteract;
         this.onTake = builder.onTake;
+        this.travel = builder.travel;
         this.hiddenWhen = builder.hiddenWhen;
     }
 
     /** True while the object is absent from its scene. */
     boolean isHidden() {
         return hiddenWhen != null && hiddenWhen.getAsBoolean();
+    }
+
+    /**
+     * The description to print: the object's styled spans when it has them,
+     * otherwise its text with the object's name picked out.
+     */
+    List<TextSpan> lookSpans() {
+        return lookSpans != null
+            ? lookSpans
+            : TextSpan.highlighting(lookText.get(), displayName, Scene.NAME);
+    }
+
+    /** Runs the interaction, then returns the line to print for it. */
+    String interact() {
+        return interaction.get();
+    }
+
+    /** Where this interaction moves the player, or null to stay in the area. */
+    CyaLocation travel() {
+        return travel == null ? null : travel.get();
     }
 
     boolean matches(String query) {
@@ -71,13 +99,13 @@ final class Interactable {
         private final String id;
         private final List<String> names = new ArrayList<>();
         private String displayName;
-        private String lookText;
+        private Supplier<String> lookText;
         private List<TextSpan> lookSpans;
-        private String interactText;
+        private Supplier<String> interaction;
         private String takeText;
         private boolean takeable;
-        private Runnable onInteract;
         private Runnable onTake;
+        private Supplier<CyaLocation> travel;
         private BooleanSupplier hiddenWhen;
 
         private Builder(String id) {
@@ -104,6 +132,11 @@ final class Interactable {
         }
 
         Builder look(String text) {
+            return look(() -> text);
+        }
+
+        /** A description built each time it is read, for text that changes. */
+        Builder look(Supplier<String> text) {
             lookText = text;
             lookSpans = null;
             return this;
@@ -124,8 +157,30 @@ final class Interactable {
         }
 
         Builder interact(String text, Runnable action) {
-            interactText = text;
-            onInteract = action;
+            return interact(() -> {
+                if (action != null) {
+                    action.run();
+                }
+                return text;
+            });
+        }
+
+        /**
+         * An interaction that works out its own line: it runs when the player
+         * uses the object, and what it returns is what the player reads. Flags it
+         * sets and the text that depends on them stay in one place.
+         */
+        Builder interact(Supplier<String> interaction) {
+            this.interaction = interaction;
+            return this;
+        }
+
+        /**
+         * Makes the interaction a way out: after its line is printed the player
+         * moves to the area the supplier returns. A null area keeps them here.
+         */
+        Builder travelTo(Supplier<CyaLocation> destination) {
+            travel = destination;
             return this;
         }
 
@@ -155,10 +210,10 @@ final class Interactable {
                 displayName = id;
             }
             if (lookText == null && lookSpans == null) {
-                lookText = "You look at the " + displayName + ". Nothing special.";
+                lookText = () -> "You look at the " + displayName + ". Nothing special.";
             }
-            if (interactText == null) {
-                interactText = "Nothing happens.";
+            if (interaction == null) {
+                interaction = () -> "Nothing happens.";
             }
             if (takeText == null) {
                 takeText = "You can't take the " + displayName + ".";

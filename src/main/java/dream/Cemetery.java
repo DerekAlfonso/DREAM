@@ -26,12 +26,9 @@ final class Cemetery {
         // is never really listed here: this entry is what names it in INVENTORY.
         Interactable.builder("crumpledPaper")
             .names("crumpled piece of paper", "paper", "piece of paper", "note")
-            // One line, written once: the gap in the quote is named as the part of
-            // it the player can never make out, so the placeholder scrambles itself
-            // instead of sitting there as static text.
             .look(TextSpan.glitching(
-                "A crumpled piece of paper, smoothed out just enough to read. The creases are deep"
-                    + " and the only words you can make out are \"Did you feel trapped in that rotting body, old friend?\"",
+                "A crumpled piece of paper, the words are smudged and worn.. how long was he out here for?"
+                    + "No matter how hard you squint the only words you can make out are \"Did you feel trapped in that rotting body, old friend?\" and something about a shack... weird.",
                 "rotting body"))
             .hiddenWhen(() -> !SaveState.spokenToMysteriousMan)
             .build()

@@ -8,9 +8,9 @@ final class House {
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("portrait")
             .names("portrait", "painting")
-            .look("A portrait of a man in a dark coat. His face has been painted over, but the shape of his shoulders is familiar.")
+            .look("A portrait of someone in casual business attire, they surround a computer that you swear you've seen somewhere, they look very.. friendly")
             .interact("You look at the portrait. The paint is still wet.")
-            .refuseTake("The portrait is part of the wall. Or the wall is part of the portrait.")
+            .refuseTake("No matter how hard you pull the portrait seems to stick to the wall as if it were a part of it")
             .build(),
         Interactable.builder("candlestick")
             .names("candlestick", "candle")
@@ -38,8 +38,8 @@ final class House {
     }
 
     static CyaLocation play(Scene.Input input) throws InterruptedException {
-        String description = "The back door opens into a house that is far too large to have fit inside "
-            + "the shack. A long hall stretches ahead, lined with doors that are all slightly open. "
+        String description = "The unlocked door opens into a house far too large to have fit behind the "
+            + "shack. A long hall stretches ahead, lined with doors that are all slightly open. "
             + "Somewhere upstairs, a floorboard creaks.";
         return new Scene(CyaLocation.HOUSE, "The House", description, OBJECTS).play(input);
     }
