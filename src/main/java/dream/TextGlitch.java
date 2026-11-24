@@ -196,11 +196,12 @@ final class TextGlitch {
 
     private int nextDelay(long now) {
         if (now >= burstEndsAt) {
-            // Past the burst the run keeps twitching instead of freezing. The
-            // pauses are long and never the same twice, so the page looks like
-            // ink that will not settle rather than an effect that stopped.
-            int base = timing.maxStepMs() * 8;
-            return base + random.nextInt(base * 2 + 1);
+            // Past the burst the run keeps twitching instead of freezing. It
+            // only eases off, never stalls: the pauses are a few steps long and
+            // never the same twice, so the page looks like ink that will not
+            // settle rather than an effect that stopped.
+            int base = timing.maxStepMs() * 3;
+            return base + random.nextInt(base + 1);
         }
         int spread = timing.maxStepMs() - timing.minStepMs();
         int delay = timing.minStepMs() + (spread <= 0 ? 0 : random.nextInt(spread + 1));
