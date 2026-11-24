@@ -76,6 +76,7 @@ final class Scene {
                     }
                     break;
                 case "interact":
+                case "use":
                 case "talk": {
                     CyaLocation destination = interact(target);
                     if (destination != null) {
@@ -107,31 +108,28 @@ final class Scene {
         }
     }
 
-    /** Bare LOOK: repeat where the player is, then what is here to see. */
+    /**
+     * Bare LOOK: repeat where the player is. The things worth acting on are named
+     * in the description itself, where they are picked out in colour, so the
+     * player reads the room instead of a list.
+     */
     private void describeArea() {
         Terminal.print(description.get(), 15, Game.standardSize, Color.WHITE);
-        listObjects();
     }
 
-    private void listObjects() {
-        boolean any = false;
-        for (Interactable object : objects) {
-            if (object.isHidden() || SaveState.hasItem(object.id)) {
-                continue;
-            }
-            Terminal.print(TextSpan.highlighting("- " + object.displayName,
-                object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
-            any = true;
-        }
-        if (!any) {
-            Terminal.print("there is nothing else here.", 15, Game.standardSize, Color.GRAY);
-        }
-    }
-
+    /**
+     * LOOK at one thing: something in the area, or something the player is
+     * carrying. Carried items describe themselves from anywhere, so a note read
+     * where it was found can be read again down in the cellar.
+     */
     private void look(String target) {
         Interactable object = find(target);
         if (object == null) {
-            Terminal.print("you don't see that here.", 15, Game.standardSize, Color.RED);
+            object = findCarried(target);
+        }
+        if (object == null) {
+            Terminal.print("you don't see that here, and you're not carrying it.",
+                15, Game.standardSize, Color.RED);
             return;
         }
         if (SaveState.hasItem(object.id)) {
@@ -139,8 +137,6 @@ final class Scene {
                 + object.displayName + ".", object.displayName, NAME),
                 15, Game.standardSize, Color.WHITE);
         }
-        // A carried item still describes itself, so its text is not lost once it
-        // leaves the scene and only the inventory can reach it.
         Terminal.print(object.lookSpans(), 15, Game.standardSize, Color.WHITE);
     }
 
@@ -226,8 +222,7 @@ final class Scene {
         // The house only opens once the cellar puzzle has been solved.
         if (destination == CyaLocation.HOUSE && !SaveState.cellarPuzzleSolved) {
             Terminal.print("you try the doors of the house. every one of them is locked,"
-                + " and you can't find an unlocked door. the shack behind you settles, and its floor gives"
-                + " a little under your boots, as if there were more room beneath it than above.",
+                + " and you can't find an unlocked door. You return to the shack, you can hear the faint hum of electronics beneath you",
                 15, Game.standardSize, Color.RED);
             return null;
         }
@@ -262,11 +257,13 @@ final class Scene {
     }
 
     private void printHelp() {
-        Terminal.print("COMMANDS -----------", 15, Game.standardSize, Color.CYAN);
-        printCommand("look", "describe the area and list what is here");
-        printCommand("look [at] <thing>", "examine something");
+        Terminal.print(TextSpan.highlighting("COMMANDS -----------", "COMMANDS", Color.WHITE),
+            15, Game.standardSize, Color.GREEN);
+        printCommand("look", "describe the area you are in");
+        printCommand("look [at] <thing>", "examine something here or carried");
         printCommand("interact <thing>", "talk to or use something");
         printCommand("talk <thing>", "alias for interact <thing>");
+        printCommand("use <thing>", "alias for interact <thing>");
         printCommand("take <thing>", "pick something up");
         printCommand("inventory", "show what you are carrying");
         printCommand("go", "list where you can go");
@@ -303,15 +300,36 @@ final class Scene {
     }
 
     private Interactable find(String name) {
-        String target = name.trim();
-        if (target.toLowerCase().startsWith("the ")) {
-            target = target.substring(4).trim();
-        }
+        String target = normalizeTarget(name);
         for (Interactable object : objects) {
             if (!object.isHidden() && object.matches(target)) {
                 return object;
             }
         }
         return null;
+    }
+
+    /**
+     * The same lookup against the inventory, so LOOK works on anything carried
+     * no matter which area the player is standing in.
+     */
+    private Interactable findCarried(String name) {
+        String target = normalizeTarget(name);
+        for (String id : SaveState.takenObjects) {
+            Interactable object = ObjectCatalog.byId(id);
+            if (object != null && object.matches(target)) {
+                return object;
+            }
+        }
+        return null;
+    }
+
+    /** A typed name with the leading "the" dropped, as the aliases are stored. */
+    private static String normalizeTarget(String name) {
+        String target = name.trim();
+        if (target.toLowerCase().startsWith("the ")) {
+            target = target.substring(4).trim();
+        }
+        return target;
     }
 }

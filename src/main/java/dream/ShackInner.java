@@ -1,18 +1,17 @@
 package dream;
-
 import java.util.List;
 
-/**
+/* 
  * The single room inside the decrepit shack. Its back door is the only way back
  * out to the yard, and the hatch in the floor leads down to the cellar once it
  * has been broken open.
  */
 final class ShackInner {
-
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("table")
             .names("table", "wooden table")
-            .look("A wooden table, set for one. The plate is clean.")
+            .look("A wooden table, set for one. The plate is clean. Someone has scratched a line into the "
+                + "tabletop beside it: \"the boards were the last thing he shut.\"")
             .interact("You touch the table. It is warm.")
             .refuseTake("The table is too big for your pockets, and it is warm.")
             .build(),
@@ -44,7 +43,7 @@ final class ShackInner {
             .build(),
         Interactable.builder("rustyKey")
             .names("rusty key", "key")
-            .look("A rusty key hangs from a nail beside the back door.")
+            .look("A small rusty key, worn smooth at the bow.")
             .take("You take the rusty key. It is cold, and it fits nothing here.")
             .build()
     );
@@ -63,10 +62,10 @@ final class ShackInner {
     /** Built fresh each time, so the hatch reads as open once it has been broken. */
     private static List<TextSpan> describeArea() {
         String description = "Inside, the shack is one long room that smells of wet wood and old smoke. "
-            + "A table, a chair and a cold stove wait in the dark. There is another door at the back. ";
+            + "A table, a chair and a cold stove wait in the dark.";
         description += SaveState.hatchBroken
-            ? "The hatch in the floorboards hangs open, and a ladder drops through it into the dark."
-            : "A hatch is set into the floorboards beside the stove, nailed shut.";
+            ? " The hatch in the floorboards hangs open, and a ladder drops through it into the dark."
+            : " A hatch is set into the floorboards beside the stove, nailed shut.";
         return TextSpan.highlighting(description, "hatch", Scene.NAME);
     }
 
@@ -76,7 +75,8 @@ final class ShackInner {
                 + "into the dark below.";
         }
         return "A hatch is set into the floorboards, its boards crossed with long iron nails and its handle long "
-            + "gone. It will not lift. It would have to be broken open.";
+            + "gone. It will not lift, and there is nothing in this room to lever it with: the axe that leans by "
+            + "the door outside would break it open.";
     }
 
     /** Breaks the hatch open if the player is carrying the axe, and says what happened. */
@@ -86,8 +86,8 @@ final class ShackInner {
         }
         if (!SaveState.hasItem("axe")) {
             return "You get your fingers under the edge of the hatch and pull until they ache. The nails hold "
-                + "fast and the boards do not shift. It would have to be broken open, and you have nothing here to "
-                + "break it with.";
+                + "fast and the boards do not shift. It would have to be broken open, and the axe is still out "
+                + "there in the yard, leaning by the shack's door.";
         }
         SaveState.hatchBroken = true;
         SaveState.save();

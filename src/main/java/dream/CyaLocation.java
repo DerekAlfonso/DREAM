@@ -12,7 +12,7 @@ enum CyaLocation {
 
     CEMETARY("cemetary", "The Cemetary", "cemetery", "graveyard"),
     SHACK_OUTER("shackOuter", "The Outer Decrepit Shack",
-        "outer", "outer shack", "outer decrepit shack"),
+        "outer", "outer shack", "outer decrepit shack", "shack", "decrepit shack"),
     SHACK_INNER("shackInner", "The Inner Decrepit Shack",
         "inner", "inner shack", "inner decrepit shack"),
     CELLAR("cellar", "The Cellar", "basement", "room below", "hatch room"),

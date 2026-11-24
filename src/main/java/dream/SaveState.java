@@ -35,6 +35,15 @@ public final class SaveState {
     public static boolean hatchBroken = false;
 
     /**
+     * True once the rusty lantern's oil has been worked into the cellar's valves.
+     * The rust has to soften before any of them will turn.
+     */
+    public static boolean valvesOiled = false;
+
+    /** True once the rusty key has opened the cellar panel hiding the third valve. */
+    public static boolean panelOpen = false;
+
+    /**
      * True once the cellar's iron wheel has been turned far enough. This is
      * also what unlocks the house.
      */
@@ -91,6 +100,8 @@ public final class SaveState {
         spokenToMysteriousMan = Boolean.parseBoolean(
             props.getProperty("spokenToMysteriousMan", "false"));
         hatchBroken = Boolean.parseBoolean(props.getProperty("hatchBroken", "false"));
+        valvesOiled = Boolean.parseBoolean(props.getProperty("valvesOiled", "false"));
+        panelOpen = Boolean.parseBoolean(props.getProperty("panelOpen", "false"));
         cellarPuzzleSolved = Boolean.parseBoolean(
             props.getProperty("cellarPuzzleSolved", "false"));
         takenObjects.clear();
@@ -122,6 +133,8 @@ public final class SaveState {
         props.setProperty("CYALocation", cyaLocation == null ? "" : cyaLocation.id);
         props.setProperty("spokenToMysteriousMan", String.valueOf(spokenToMysteriousMan));
         props.setProperty("hatchBroken", String.valueOf(hatchBroken));
+        props.setProperty("valvesOiled", String.valueOf(valvesOiled));
+        props.setProperty("panelOpen", String.valueOf(panelOpen));
         props.setProperty("cellarPuzzleSolved", String.valueOf(cellarPuzzleSolved));
         props.setProperty("takenObjects", String.join(",", takenObjects));
         props.setProperty("stage", nullToEmpty(stage));
@@ -162,6 +175,8 @@ public final class SaveState {
         cyaLocation = null;
         spokenToMysteriousMan = false;
         hatchBroken = false;
+        valvesOiled = false;
+        panelOpen = false;
         cellarPuzzleSolved = false;
         takenObjects.clear();
         stage = null;

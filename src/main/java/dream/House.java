@@ -39,8 +39,9 @@ final class House {
 
     static CyaLocation play(Scene.Input input) throws InterruptedException {
         String description = "The unlocked door opens into a house far too large to have fit behind the "
-            + "shack. A long hall stretches ahead, lined with doors that are all slightly open. "
-            + "Somewhere upstairs, a floorboard creaks.";
+            + "shack. A long hall stretches ahead, lined with doors that are all slightly open. A portrait "
+            + "hangs over a coat rack by the door, a candlestick burns on a side table, and a staircase "
+            + "climbs into a darkness that does not match the ceiling. Somewhere upstairs, a floorboard creaks.";
         return new Scene(CyaLocation.HOUSE, "The House", description, OBJECTS).play(input);
     }
 }

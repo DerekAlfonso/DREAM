@@ -54,7 +54,7 @@ public record TextSpan(String text, Color color, boolean bold, GlitchStyle glitc
 
     /** The same, with a caller-supplied look and rhythm. */
     public static List<TextSpan> glitching(String text, String passage, GlitchStyle style) {
-        return splitting(text, passage, run -> glitch(run, style));
+        return splitting(text, needles(passage), run -> glitch(run, style));
     }
 
     /**
@@ -63,19 +63,39 @@ public record TextSpan(String text, Color color, boolean bold, GlitchStyle glitc
      * object from inside the sentence that describes it.
      */
     public static List<TextSpan> highlighting(String text, String word, Color color) {
-        return splitting(text, word, run -> highlight(run, color));
+        return highlighting(text, color, word);
     }
 
     /**
-     * Cuts text into plain runs around every whole-word occurrence of the given
-     * passage, styling those occurrences with the supplied span factory. A
+     * The same, for a line that names more than one thing worth pointing at, so
+     * a description can pick out every part of it the player can act on.
+     */
+    public static List<TextSpan> highlighting(String text, Color color, String... words) {
+        return splitting(text, needles(words), run -> highlight(run, color));
+    }
+
+    /** Lowercased, trimmed passages, with blanks dropped so none matches everything. */
+    private static List<String> needles(String... passages) {
+        List<String> needles = new ArrayList<>();
+        for (String passage : passages) {
+            String needle = passage == null ? "" : passage.trim().toLowerCase();
+            if (!needle.isEmpty()) {
+                needles.add(needle);
+            }
+        }
+        return needles;
+    }
+
+    /**
+     * Cuts text into plain runs around every whole-word occurrence of any of the
+     * given passages, styling those occurrences with the supplied span factory.
+     * The earliest occurrence wins, so overlapping passages do not double up. A
      * passage that never occurs leaves the whole line plain.
      */
-    private static List<TextSpan> splitting(String text, String passage,
+    private static List<TextSpan> splitting(String text, List<String> needles,
             Function<String, TextSpan> marked) {
         List<TextSpan> spans = new ArrayList<>();
-        String needle = passage == null ? "" : passage.trim().toLowerCase();
-        if (needle.isEmpty()) {
+        if (needles.isEmpty()) {
             spans.add(of(text));
             return spans;
         }
@@ -84,29 +104,39 @@ public record TextSpan(String text, Color color, boolean bold, GlitchStyle glitc
         int kept = 0;
         int scan = 0;
         while (scan < haystack.length()) {
-            int at = haystack.indexOf(needle, scan);
+            int at = -1;
+            int length = 0;
+            for (String needle : needles) {
+                int found = nextWholeWord(haystack, needle, scan);
+                if (found >= 0 && (at < 0 || found < at)) {
+                    at = found;
+                    length = needle.length();
+                }
+            }
             if (at < 0) {
                 break;
             }
-
-            int end = at + needle.length();
-            if (isWholeWord(text, at, end)) {
-                if (at > kept) {
-                    spans.add(of(text.substring(kept, at)));
-                }
-                spans.add(marked.apply(text.substring(at, end)));
-                kept = end;
-                scan = end;
-            } else {
-                // Part of a longer word, so keep looking past this one.
-                scan = at + 1;
+            if (at > kept) {
+                spans.add(of(text.substring(kept, at)));
             }
+            spans.add(marked.apply(text.substring(at, at + length)));
+            kept = at + length;
+            scan = kept;
         }
 
         if (kept < text.length()) {
             spans.add(of(text.substring(kept)));
         }
         return spans;
+    }
+
+    /** The next whole-word occurrence of the needle at or after from, or -1. */
+    private static int nextWholeWord(String haystack, String needle, int from) {
+        int at = haystack.indexOf(needle, from);
+        while (at >= 0 && !isWholeWord(haystack, at, at + needle.length())) {
+            at = haystack.indexOf(needle, at + 1);
+        }
+        return at;
     }
 
     private static boolean isWholeWord(String text, int start, int end) {

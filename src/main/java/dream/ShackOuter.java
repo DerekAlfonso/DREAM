@@ -23,11 +23,11 @@ final class ShackOuter {
             .names("axe", "wood axe", "hatchet")
             .look("A remarkably nice Axe, the wood feels premium under your fingers and the metal head leaves nothing to be desired")
             .interact("You test the edge with your thumb. It would break something, given a reason.")
-            .take("You take the axe. The weight of it makes the shack feel smaller.")
+            .take("You take the axe. The weight of it feels good in your hands.")
             .build(),
-        Interactable.builder("rustyLantern")
+        Interactable.builder("rustyLantern") // lowkey might scrap lol
             .names("rusty lantern", "lantern")
-            .look("A rusty lantern hangs from a nail by the door. There is still a little oil in it.")
+            .look("A rusty lantern, still holding a little oil in the base.")
             .interact("The lantern is cold. The oil inside is still liquid.")
             .take("You take the rusty lantern. It is heavier than it looks.")
             .build()
@@ -40,10 +40,16 @@ final class ShackOuter {
     }
 
     static CyaLocation play(Scene.Input input) throws InterruptedException {
+        return new Scene(CyaLocation.SHACK_OUTER, "The Outer Decrepit Shack",
+            ShackOuter::describeArea, OBJECTS).play(input);
+    }
+
+    /** Built fresh each time, so the parts the player can act on are picked out. */
+    private static List<TextSpan> describeArea() {
         String description = "The path ends at a shack that leans like it is trying to lie down. "
-            + "Its windows are boarded from the inside, and a crooked door hangs open just enough "
-            + "to let the dark out.";
-        return new Scene(CyaLocation.SHACK_OUTER, "The Outer Decrepit Shack", description, OBJECTS)
-            .play(input);
+            + "Its windows are closed over with fresh boards, and a crooked door hangs open just "
+            + "enough to let the dark out. An axe leans against the wall beside the door, and a rusty "
+            + "lantern hangs from a nail there.";
+        return TextSpan.highlighting(description, Scene.NAME, "boards", "door", "axe", "lantern");
     }
 }

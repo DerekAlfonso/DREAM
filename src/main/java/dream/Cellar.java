@@ -5,17 +5,27 @@ import java.util.List;
 /**
  * The room under the shack's floor, reached through the broken-open hatch.
  *
- * <p>The puzzle is the seized iron wheel on the pipe: it needs the axe for
- * leverage and seven turns, which the tally scratched into the brick spells
- * out. Solving it is what unlocks the house.
+ * <p>The puzzle is the three valves on the pipe. None of them will move until
+ * the lantern's oil is worked into the joints, the third one stays hidden behind
+ * a padlocked panel until the rusty key opens it, and they only let the water
+ * through when they are turned in the right order. That order is not written
+ * down here: it has to be worked out from the man's note in the graveyard and a
+ * sentence scratched into the shack's table. Solving it unlocks the house.
  */
 final class Cellar {
 
-    /** Turns the wheel needs before the pipe gives. The tally on the wall is the clue. */
-    private static final int TURNS_NEEDED = 7;
+    /**
+     * The order the valves must be turned in: the plate, then the grave, then the
+     * boards. The note rules the grave out of first place, and the table says the
+     * boards were shut last.
+     */
+    private static final List<String> ORDER = List.of("plateValve", "graveValve", "boardValve");
 
-    /** Turns so far this visit. Leaving and coming back resets it rather than punishing. */
-    private static int turns = 0;
+    /**
+     * Valves opened so far in the right order. A wrong one sets them all back, and
+     * the count is not saved, so reloading always starts the sequence again.
+     */
+    private static int opened = 0;
 
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("cellarHatch")
@@ -25,19 +35,31 @@ final class Cellar {
             .travelTo(() -> CyaLocation.SHACK_INNER)
             .refuseTake("The hatch is part of the shack. Taking it would be a very short trip.")
             .build(),
-        Interactable.builder("tally")
-            .names("tally", "scratches", "brick", "wall")
-            .look("Seven strokes are scratched deep into the brick: three, a gap, three, a gap, one. "
-                + "Underneath, in a smaller hand: \"turn it as many times as the walls remember.\"")
-            .interact("You run a finger along the scratches. Whoever cut them pressed hard enough to chip the brick.")
-            .refuseTake("You can't take the wall. You have tried harder things tonight.")
+        Interactable.builder("plateValve")
+            .names("plate valve", "plate", "brass valve")
+            .look("A brass valve is bolted to the pipe, its handle worn bright where hands have worked it. "
+                + "Stamped into the brass is a plate, set for one.")
+            .interact(() -> turnValve("plateValve"))
+            .refuseTake("The valve is bolted through the pipe. You would have to take the pipe with it.")
             .build(),
-        Interactable.builder("ironWheel")
-            .names("iron wheel", "wheel", "valve", "rusted wheel")
-            .look("A heavy iron wheel is bolted onto a pipe that climbs out of the floor and into the wall. "
-                + "Seven spokes, all of them orange with rust. It would turn, if you had something to lever it with.")
-            .interact(Cellar::turnWheel)
-            .refuseTake("The wheel is bolted to the pipe, and the pipe is bolted to the house.")
+        Interactable.builder("boardValve")
+            .names("board valve", "board", "boards", "iron valve")
+            .look("An iron valve, heavier than the other, stamped with a board and a nail driven through it.")
+            .interact(() -> turnValve("boardValve"))
+            .refuseTake("The valve is bolted through the pipe. It is not going anywhere.")
+            .build(),
+        Interactable.builder("graveValve")
+            .names("grave valve", "grave", "stone", "leaning stone")
+            .look("A small valve, half eaten by rust, stamped with a leaning headstone.")
+            .interact(() -> turnValve("graveValve"))
+            .refuseTake("The valve is bolted to the pipe, behind a panel that has its own opinions.")
+            .hiddenWhen(() -> !SaveState.panelOpen)
+            .build(),
+        Interactable.builder("ironPanel")
+            .names("panel", "iron panel", "padlock", "lock")
+            .look(Cellar::describePanel)
+            .interact(Cellar::openPanel)
+            .refuseTake("The panel is part of the wall. The padlock, though, is tempting.")
             .build()
     );
 
@@ -52,38 +74,79 @@ final class Cellar {
             Cellar::describeArea, OBJECTS).play(input);
     }
 
-    /** Built fresh each time, so a solved room stops sounding like it is waiting. */
+    /** Built fresh each time, so the panel reads as open once the key has been in it. */
     private static List<TextSpan> describeArea() {
-        String description = "A low brick room under the shack's floor, cold and close, with the hatch above you "
-            + "letting in a pale square of light. A rusted pipe climbs out of the floor and into the wall, "
-            + "and someone has scratched a tally into the brick beside it.";
+        String description = "A low brick room under the shack's floor, cold and close, with the hatch above "
+            + "you letting in a pale square of light. A rusted pipe climbs out of the floor and into the wall, "
+            + "and two valves are bolted to it in a row, one stamped with a plate and one with a board.";
+        description += SaveState.panelOpen
+            ? " The iron panel at the foot of the pipe hangs open on its hinge."
+            : " An iron panel at the foot of the pipe is held shut by a brass padlock.";
         if (SaveState.cellarPuzzleSolved) {
             description += " The pipe is silent now, and somewhere above, the house is awake.";
         }
-        return TextSpan.highlighting(description, "tally", Scene.NAME);
+        return TextSpan.highlighting(description, Scene.NAME, "plate", "board", "panel");
     }
 
-    /** Turns the wheel if the player has the axe, and says what happened. */
-    private static String turnWheel() {
+    private static String describePanel() {
+        if (SaveState.panelOpen) {
+            return "The iron panel stands open on its hinge. The third valve is bolted to the pipe inside "
+                + "it, stamped with a leaning stone.";
+        }
+        return "An iron panel is set into the brick at the foot of the pipe, held shut by a brass padlock "
+            + "with no key in it. The lock is small and old, the kind a small key would open.";
+    }
+
+    /** Opens the panel that hides the third valve, if the player has the rusty key. */
+    private static String openPanel() {
+        if (SaveState.panelOpen) {
+            return "The panel is already open. The third valve waits inside it.";
+        }
+        if (!SaveState.hasItem("rustyKey")) {
+            return "You tug at the padlock. It is small, and old, and does not care. A small key would open it.";
+        }
+        SaveState.panelOpen = true;
+        SaveState.save();
+        return "The rusty key turns in the padlock with a click that sounds almost relieved. The panel "
+            + "swings open, and inside, bolted to the pipe, is a third valve stamped with a leaning stone.";
+    }
+
+    /**
+     * Turns one valve. The oil has to be in the joints first, and the valves only
+     * stay open when they are turned in the order the clues describe.
+     */
+    private static String turnValve(String id) {
         if (SaveState.cellarPuzzleSolved) {
-            return "The wheel sits where you left it, spinning free. The house above has already answered.";
+            return "The valves sit open and the pipe is silent. The house above has already answered.";
         }
-        if (!SaveState.hasItem("axe")) {
-            return "You get both hands on the wheel and pull until your arms shake. The rust does not give. "
-                + "You would need something to lever the spokes with.";
+        if (!SaveState.valvesOiled) {
+            if (!SaveState.hasItem("rustyLantern")) {
+                return "You put both hands on the valve and lean until your arms shake. It will not move: the "
+                    + "rust has seized the joint. A little oil worked into it would free it.";
+            }
+            SaveState.valvesOiled = true;
+            SaveState.save();
+            return "You tip the lantern over the valves and work the oil into the joints with your thumb. "
+                + "The rust softens, and the handle shifts a fraction under your hand.";
         }
 
-        turns++;
-        if (turns < TURNS_NEEDED) {
-            return "You wedge the axe between two spokes and lean on it. The wheel turns with a grinding "
-                + "shriek, and the pipe knocks once inside the wall. (" + turns + "/" + TURNS_NEEDED + ")";
+        if (!ORDER.get(opened).equals(id)) {
+            opened = 0;
+            return "You haul the valve round. Water slams shut somewhere in the pipe, the other valves "
+                + "shudder on their bolts, and everything settles back the way it was. Whatever order this "
+                + "is, it is not the right one, and it is not written on these walls.";
         }
 
-        turns = 0;
+        opened++;
+        if (opened < ORDER.size()) {
+            return "The valve turns with a grinding shriek. Water moves somewhere above you, and the handle "
+                + "goes slack in your hand, like the pipe is waiting for the next one.";
+        }
+
+        opened = 0;
         SaveState.cellarPuzzleSolved = true;
         SaveState.save();
-        return "You wedge the axe into the spokes and turn the wheel the seventh time. Something lets go deep "
-            + "in the pipe, and the wheel spins free on its own. Far above you, muffled by the floorboards, something "
-            + "heavy falls over. It sounds like the sound came from the house.";
+        return "You turn the last valve, and the pipe takes water with a sound like a long swallow. Far "
+            + "above you, muffled by the floorboards, something heavy falls over. It came from the house.";
     }
 }
