@@ -1,6 +1,7 @@
 package dream;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -14,6 +15,15 @@ final class Scene {
 
     /** Colour that marks an object's name, so the thing you can type stands out. */
     static final Color NAME = Color.GREEN;
+
+    /** What an interaction did: a place to go, or the end of the story. */
+    private record Outcome(CyaLocation destination, boolean finished) { }
+
+    /** An interaction that kept the player where they were. */
+    private static final Outcome STAY = new Outcome(null, false);
+
+    /** An interaction that finished the run. */
+    private static final Outcome FINISHED = new Outcome(null, true);
 
     @FunctionalInterface
     interface Input {
@@ -42,13 +52,23 @@ final class Scene {
     }
 
     /**
+     * Wraps plain text that changes with the story, for areas that style
+     * nothing inside their description. The names of the objects in the area
+     * are still picked out when the scene prints it.
+     */
+    static Supplier<List<TextSpan>> text(Supplier<String> description) {
+        return () -> List.of(TextSpan.of(description.get()));
+    }
+
+    /**
      * Plays the area until the player travels or leaves.
      *
      * @return the area chosen with GO, or null if the player stopped exploring
+     *         or the story ended
      */
     CyaLocation play(Input input) throws InterruptedException {
         Terminal.print(title, 1, Game.standardSize + 4, Color.GRAY);
-        Terminal.print(description.get(), 15, Game.standardSize, Color.WHITE);
+        Terminal.print(descriptionSpans(), 15, Game.standardSize, Color.WHITE);
         Terminal.print("type HELP for all commands, or LOOK to look around.",
             15, Game.standardSize, Color.GREEN);
 
@@ -78,9 +98,12 @@ final class Scene {
                 case "interact":
                 case "use":
                 case "talk": {
-                    CyaLocation destination = interact(target);
-                    if (destination != null) {
-                        return destination;
+                    Outcome outcome = interact(target);
+                    if (outcome.finished()) {
+                        return null;
+                    }
+                    if (outcome.destination() != null) {
+                        return outcome.destination();
                     }
                     break;
                 }
@@ -114,7 +137,22 @@ final class Scene {
      * player reads the room instead of a list.
      */
     private void describeArea() {
-        Terminal.print(description.get(), 15, Game.standardSize, Color.WHITE);
+        Terminal.print(descriptionSpans(), 15, Game.standardSize, Color.WHITE);
+    }
+
+    /**
+     * The room text with the name of every object the player can see picked out
+     * in green. The names come from the objects themselves, so an area only
+     * writes its prose and the things worth typing stand out on their own.
+     */
+    private List<TextSpan> descriptionSpans() {
+        List<String> names = new ArrayList<>();
+        for (Interactable object : objects) {
+            if (!object.isHidden()) {
+                names.addAll(object.names);
+            }
+        }
+        return TextSpan.highlighting(description.get(), NAME, names.toArray(new String[0]));
     }
 
     /**
@@ -133,35 +171,40 @@ final class Scene {
             return;
         }
         if (SaveState.hasItem(object.id)) {
-            Terminal.print(TextSpan.highlighting("you are carrying the "
-                + object.displayName + ".", object.displayName, NAME),
-                15, Game.standardSize, Color.WHITE);
+            Terminal.print(object.highlightNames("you are carrying the "
+                + object.displayName + "."), 15, Game.standardSize, Color.WHITE);
         }
         Terminal.print(object.lookSpans(), 15, Game.standardSize, Color.WHITE);
     }
 
     /**
-     * Runs an object's interaction and prints the line it returns. Returns where
-     * the object moved the player, or null when the player stays in the area:
-     * this is how a door or a hatch is a way out rather than a GO target.
+     * Runs an object's interaction. Returns the place the object moved the
+     * player, or the end of the story when the object carries a finale: this is
+     * how a door or a hatch is a way out rather than a GO target, and how the
+     * ending room's main piece closes the run.
      */
-    private CyaLocation interact(String target) {
+    private Outcome interact(String target) throws InterruptedException {
         if (target.isEmpty()) {
             printTargetUsage("interact", null);
-            return null;
+            return STAY;
         }
         Interactable object = find(target);
         if (object == null) {
             printTargetUsage("interact", target);
-            return null;
+            return STAY;
         }
-        Terminal.print(TextSpan.highlighting(object.interact(),
-            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
+        if (object.endsScene()) {
+            object.playFinale();
+            Terminal.awaitIdle();
+            return FINISHED;
+        }
+        Terminal.print(object.highlightNames(object.interact()),
+            15, Game.standardSize, Color.WHITE);
         CyaLocation destination = object.travel();
         if (destination != null) {
             Terminal.blankLine();
         }
-        return destination;
+        return new Outcome(destination, false);
     }
 
     private void take(String target) {
@@ -175,13 +218,11 @@ final class Scene {
             return;
         }
         if (SaveState.hasItem(object.id)) {
-            Terminal.print(TextSpan.highlighting("you already have the "
-                + object.displayName + ".", object.displayName, NAME),
-                15, Game.standardSize, Color.WHITE);
+            Terminal.print(object.highlightNames("you already have the "
+                + object.displayName + "."), 15, Game.standardSize, Color.WHITE);
             return;
         }
-        Terminal.print(TextSpan.highlighting(object.takeText,
-            object.displayName, NAME), 15, Game.standardSize, Color.WHITE);
+        Terminal.print(object.takeSpans(), 15, Game.standardSize, Color.WHITE);
         if (!object.takeable) {
             return;
         }
@@ -250,9 +291,10 @@ final class Scene {
         }
         for (String id : SaveState.takenObjects) {
             Interactable object = ObjectCatalog.byId(id);
-            String name = object == null ? id : object.displayName;
-            Terminal.print(TextSpan.highlighting("- " + name, name, NAME),
-                15, Game.standardSize, Color.WHITE);
+            List<TextSpan> line = object == null
+                ? TextSpan.highlighting("- " + id, id, NAME)
+                : object.highlightNames("- " + object.displayName);
+            Terminal.print(line, 15, Game.standardSize, Color.WHITE);
         }
     }
 

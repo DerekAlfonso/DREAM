@@ -10,6 +10,8 @@ import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * D.R.E.A.M - Digital Recreation of Emotional Aptitude Model.
@@ -28,8 +30,9 @@ import java.lang.reflect.InvocationTargetException;
  *
  * <p>Development shortcuts: {@code --new} starts the story from the beginning,
  * {@code --from-save} continues immediately, {@code --skip-intro} starts at the
- * CYA, and {@code --scene=cemetary|shackOuter|shackInner|house} resumes at one
- * of its checkpoints.
+ * CYA, {@code --scene=<area>} drops straight into one of its checkpoints, and
+ * {@code --preset=<list>} starts the run with story flags and carried items
+ * already set.
  */
 public final class Main {
 
@@ -38,6 +41,10 @@ public final class Main {
      * column wraps constantly and only a handful of lines fit on screen.
      */
     private static final int MIN_CONTENT_WIDTH = 800;
+
+    /** What --preset accepts, for the warning when a name is not recognised. */
+    private static final String PRESET_HELP =
+        "hatch, panel, oiled, solved, man, or an item name like axe, lantern, key, paper";
     private static final int MIN_CONTENT_HEIGHT = 600;
 
     private static JFrame frame;
@@ -57,6 +64,9 @@ public final class Main {
 
     /** Set by --scene=<id>: resume the CYA at a checkpoint. */
     static CyaLocation startScene = null;
+
+    /** Set by --preset=a,b: story flags and item names applied before the run. */
+    static final List<String> presets = new ArrayList<>();
 
     private Main() { }
 
@@ -81,11 +91,18 @@ public final class Main {
                 String id = arg.substring("--scene=".length());
                 startScene = CyaLocation.fromId(id);
                 if (startScene == null) {
-                    Log.warn("Unknown --scene value '" + id
-                        + "'. Use cemetary, shackOuter, shackInner or house.");
+                    Log.warn("Unknown --scene value '" + id + "'. Use "
+                        + sceneNames() + ".");
                 } else {
                     startStory = true;
                     skipIntro = false;
+                }
+            } else if (arg.toLowerCase().startsWith("--preset=")) {
+                String list = arg.substring("--preset=".length());
+                for (String name : list.split(",")) {
+                    if (!name.trim().isEmpty()) {
+                        presets.add(name.trim());
+                    }
                 }
             }
         }
@@ -96,9 +113,16 @@ public final class Main {
         Settings.load();
         SaveState.load();
 
+        // --new wipes the save first, so presets land on a clean run.
+        if (startNew) {
+            SaveState.reset();
+        }
+        applyPresets();
+
         // Decode the short effects up front so the first keystroke is instant.
         AudioManager.preloadAsync(AudioManager.KEYBOARD_CLICKS);
         AudioManager.preloadAsync(AudioManager.SCROLL_SOUNDS);
+        AudioManager.preloadAsync(AudioManager.TYPING_DENIED);
 
         try {
             SwingUtilities.invokeAndWait(Main::buildWindow);
@@ -116,6 +140,65 @@ public final class Main {
         Thread storyThread = new Thread(game, "dream-story");
         storyThread.setDaemon(true);
         storyThread.start();
+    }
+
+    /**
+     * Applies --preset values before the story starts: story flags by name,
+     * and anything else as an item, by id or by one of the names the game
+     * accepts, so a checkpoint can be reached in the state it expects.
+     */
+    private static void applyPresets() {
+        if (presets.isEmpty()) {
+            return;
+        }
+        for (String preset : presets) {
+            if (applyFlag(preset)) {
+                continue;
+            }
+            Interactable item = ObjectCatalog.find(preset);
+            if (item == null) {
+                Log.warn("Unknown --preset value '" + preset + "'. Use "
+                    + PRESET_HELP + ".");
+                continue;
+            }
+            SaveState.takenObjects.add(item.id);
+        }
+        SaveState.save();
+    }
+
+    /** Sets one story flag by its --preset name. False means it is not a flag. */
+    private static boolean applyFlag(String name) {
+        switch (name.toLowerCase()) {
+            case "hatch":
+                SaveState.hatchBroken = true;
+                return true;
+            case "panel":
+                SaveState.panelOpen = true;
+                return true;
+            case "oiled":
+                SaveState.valvesOiled = true;
+                return true;
+            case "solved":
+                SaveState.cellarPuzzleSolved = true;
+                return true;
+            case "man":
+                SaveState.spokenToMysteriousMan = true;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /** The --scene ids, read from the checkpoints so the message cannot drift. */
+    private static String sceneNames() {
+        StringBuilder names = new StringBuilder();
+        for (CyaLocation location : CyaLocation.values()) {
+            if (names.length() > 0) {
+                names.append(", ");
+            }
+            names.append(location.id);
+        }
+        return names.toString();
     }
 
     private static void buildWindow() {

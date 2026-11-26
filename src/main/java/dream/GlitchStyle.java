@@ -44,7 +44,7 @@ public record GlitchStyle(
 
     /** The stock corruption: about five seconds of irregular green noise. */
     public static final GlitchStyle DEFAULT = new GlitchStyle(
-        DEFAULT_GLYPHS, DEFAULT_COLORS, 25, 90, 5200, 0.18, 0.55, true);
+        DEFAULT_GLYPHS, DEFAULT_COLORS, 25, 30, 5200, 0.18, 0.55, true);
 
     public GlitchStyle {
         glyphs = glyphs == null ? "" : glyphs;

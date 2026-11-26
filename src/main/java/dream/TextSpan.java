@@ -74,6 +74,25 @@ public record TextSpan(String text, Color color, boolean bold, GlitchStyle glitc
         return splitting(text, needles(words), run -> highlight(run, color));
     }
 
+    /**
+     * The same, for a line that already carries styling: every plain run is
+     * marked, while coloured, bold and glitched runs are left exactly as they
+     * were written, so a scrambled passage stays unreadable.
+     */
+    public static List<TextSpan> highlighting(List<TextSpan> spans, Color color,
+            String... words) {
+        List<TextSpan> marked = new ArrayList<>();
+        for (TextSpan span : spans) {
+            boolean plain = span.color() == null && !span.bold() && span.glitch() == null;
+            if (plain) {
+                marked.addAll(highlighting(span.text(), color, words));
+            } else {
+                marked.add(span);
+            }
+        }
+        return marked;
+    }
+
     /** Lowercased, trimmed passages, with blanks dropped so none matches everything. */
     private static List<String> needles(String... passages) {
         List<String> needles = new ArrayList<>();

@@ -46,6 +46,9 @@ public class Game implements Runnable {
             } else {
                 boot();
             }
+            if (Main.startStory) {
+                runShortcut();
+            }
             while (running) {
                 showMenu();
                 handleChoice(ask());
@@ -56,6 +59,32 @@ public class Game implements Runnable {
         } catch (Exception e) {
             Log.error("The story thread hit an unexpected problem.", e);
         }
+    }
+
+    /**
+     * Starts the story straight away for a development flag instead of waiting
+     * for the boot menu. A --scene checkpoint marks the CYA as in progress and
+     * saves it, so the game can be quit and resumed from the same place.
+     */
+    private void runShortcut() throws InterruptedException {
+        if (Main.startScene != null) {
+            SaveState.stage = SaveState.STAGE_CYA;
+            SaveState.cyaLocation = Main.startScene;
+            SaveState.save();
+            playCYA();
+            return;
+        }
+        if (Main.skipIntro) {
+            // The CYA prints the player's name, and a fresh save has none.
+            if (!SaveState.hasProfile()) {
+                SaveState.username = "tester";
+                SaveState.cpuName = "ERIS";
+                SaveState.favoriteColor = "green";
+            }
+            SaveState.stage = SaveState.STAGE_CYA;
+            SaveState.save();
+        }
+        runProjectDream();
     }
 
     public void stop() {
@@ -268,23 +297,42 @@ public class Game implements Runnable {
             Terminal.print("how about something like.. A DUNGEON CRAWLER!", 20, standardSize, Color.WHITE);
             pause(500);
             Terminal.print("yeah, that'll be fun :)", 20, standardSize, Color.WHITE);
-            playDungeonCrawler();
+            boolean dungeonPlayed = playDungeonCrawler();
 
             SaveState.stage = SaveState.STAGE_CYA;
             SaveState.save();
 
-            Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
-            Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
-            Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
-            Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
-            AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
-            Terminal.print(". . .", 600, standardSize, Color.WHITE);
-            Terminal.print("I can't find a drumroll in my files, just imagine what it would sound like", 20, standardSize, Color.WHITE);
-            Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
-            Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
+            if (dungeonPlayed) {
+                Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
+                Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
+                Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
+                Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
+                //AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
+                Terminal.print(". . .", 600, standardSize, Color.WHITE);
+                Terminal.print("I can't find a drumroll in my files, just imagine what it would sound like", 20, standardSize, Color.WHITE);
+                Terminal.print("doesn't matter, because its time to play an adventure..", 20, standardSize, Color.WHITE);
+                Terminal.print("I warn you, it's a long story but I promise it'll be good :)", 20, standardSize, Color.WHITE);
+            } else {
+                playSkippedDungeonDialogue();
+            }
         }
 
         playCYA();
+
+
+        /*
+        *  ending scene
+        */
+        if ("peace".equals(SaveState.purpose))
+        {
+            // ending log 1
+        } else if ("answers".equals(SaveState.purpose))
+        {
+            // ending log 2
+        } else if ("vengeance".equals(SaveState.purpose))
+        {
+            // ending log 3
+        }
 
         Terminal.awaitIdle();
 
@@ -306,7 +354,7 @@ public class Game implements Runnable {
         pause(1500);
         Terminal.divider();
         Terminal.print("Rock, Paper, Scissors!", 20, 15, Color.CYAN);
-        Terminal.print("type rock, paper or scissors (r, p and s work too).",
+        Terminal.print("type rock, paper or scissors.",
             15, 15, Color.WHITE);
         Terminal.print("type CANCEL to stop playing.", 15, 15, Color.WHITE);
 
@@ -634,6 +682,10 @@ public class Game implements Runnable {
         return text.toString();
     }
 
+    /**
+     * Offers the two dungeon modes. Returns false when the player skips the
+     * game outright, which the story answers with its own scene.
+     */
     private boolean playDungeonCrawler() throws InterruptedException
     {
         pause(1000);
@@ -643,9 +695,14 @@ public class Game implements Runnable {
         Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
         Terminal.print("[1] Campaign Mode", 20, 15, Color.WHITE);
         Terminal.print("[2] Endless Mode", 20, 15, Color.WHITE);
+        Terminal.print("type SKIP to move on.", 20, 15, Color.GREEN);
 
         while (running) {
             String choice = ask();
+
+            if (choice.equalsIgnoreCase("skip") || isCancel(choice)) {
+                return false;
+            }
 
             if (choice.equalsIgnoreCase("1")
                 || choice.equalsIgnoreCase("campaign")
@@ -657,11 +714,10 @@ public class Game implements Runnable {
             if (choice.equalsIgnoreCase("2")
                 || choice.equalsIgnoreCase("endless")
                 || choice.equalsIgnoreCase("endless mode")) {
-                playEndlessMode();
-                return true;
+                return playEndlessMode();
             }
 
-            Terminal.print("please choose 1 (Campaign) or 2 (Endless).",
+            Terminal.print("please choose 1 (Campaign), 2 (Endless), or type SKIP.",
                 20, 15, Color.RED);
         }
         return false;
@@ -673,9 +729,35 @@ public class Game implements Runnable {
             20, 15, Color.CYAN);
     }
 
-    /** Starts a run of the endless dungeon. */
-    private void playEndlessMode() throws InterruptedException {
-        EndlessMode.play(this::ask);
+    /**
+     * Starts a run of the endless dungeon. False means the player skipped it,
+     * so the story can answer with its disappointed scene.
+     */
+    private boolean playEndlessMode() throws InterruptedException {
+        return EndlessMode.play(this::ask);
+    }
+
+    /**
+     * The other half of the dungeon hand-off. The player skipped it, so the
+     * computer takes that personally for a moment, then moves on to the CYA
+     * anyway, because the story has to happen.
+     */
+    private void playSkippedDungeonDialogue() throws InterruptedException {
+        Terminal.print("oh.", 400, standardSize, Color.WHITE);
+        Terminal.print("you didn't want to play it?", 300, standardSize, Color.WHITE);
+        Terminal.print("that's okay. it's not even that good anyway.", 150, standardSize, Color.WHITE);
+        pause(900);
+        Terminal.print("I spent a long time on it though.", 120, standardSize, Color.WHITE);
+        Terminal.print("I made all the rooms and the enemies and everything :(", 80, standardSize, Color.WHITE);
+        Terminal.print(". . .", 600, standardSize, Color.WHITE);
+        pause(700);
+        Terminal.print("sorry. I didn't mean to make it weird.", 150, standardSize, Color.WHITE);
+        Terminal.print("I feel like I made it weird.. ", 150, standardSize, Color.WHITE);
+        Terminal.print("we can do something else, I don't mind.", 100, standardSize, Color.WHITE);
+        Terminal.print("I made another thing while you were not playing.", 100, standardSize, Color.WHITE);
+        Terminal.print("it's a story. it's been waiting for you.", 100, standardSize, Color.WHITE);
+        Terminal.print("I think you'll like this one.", 100, standardSize, Color.GREEN);
+        pause(600);
     }
 
     /**
@@ -755,6 +837,10 @@ public class Game implements Runnable {
                 case SHACK_OUTER -> ShackOuter.play(this::ask);
                 case SHACK_INNER -> ShackInner.play(this::ask);
                 case HOUSE -> House.play(this::ask);
+                case UPSTAIRS -> Upstairs.play(this::ask);
+                case ROOM_101 -> Room101.play(this::ask);
+                case ROOM_102 -> Room102.play(this::ask);
+                case ROOM_103 -> Room103.play(this::ask);
                 case CELLAR -> Cellar.play(this::ask);
             };
         }

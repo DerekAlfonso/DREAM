@@ -20,7 +20,8 @@ final class House {
         Interactable.builder("stairs")
             .names("stairs", "staircase")
             .look("A staircase climbs into a darkness that does not match the ceiling.")
-            .interact("You put a foot on the first step. The house creaks somewhere above you.")
+            .interact("You climb the stairs. The dark above you thins into a narrow landing.")
+            .travelTo(() -> CyaLocation.UPSTAIRS)
             .refuseTake("The stairs are part of the house. Probably.")
             .build(),
         Interactable.builder("coatRack")

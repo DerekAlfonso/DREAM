@@ -22,10 +22,18 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_BACK_SPACE:
-                Terminal.handleBackspace();
+                if (e.isControlDown()) {
+                    Terminal.deleteWordBackward();
+                } else {
+                    Terminal.handleBackspace();
+                }
                 break;
             case KeyEvent.VK_DELETE:
-                Terminal.handleDelete();
+                if (e.isControlDown()) {
+                    Terminal.deleteWordForward();
+                } else {
+                    Terminal.handleDelete();
+                }
                 break;
             case KeyEvent.VK_LEFT:
                 Terminal.moveCursor(-1);

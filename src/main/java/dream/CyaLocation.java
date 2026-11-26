@@ -16,7 +16,11 @@ enum CyaLocation {
     SHACK_INNER("shackInner", "The Inner Decrepit Shack",
         "inner", "inner shack", "inner decrepit shack"),
     CELLAR("cellar", "The Cellar", "basement", "room below", "hatch room"),
-    HOUSE("house", "The House"); 
+    HOUSE("house", "The House"),
+    UPSTAIRS("upstairs", "The Upstairs", "up", "upstairs hall", "landing", "hall"),
+    ROOM_101("room101", "The Bedroom", "101", "room 101", "bedroom"),
+    ROOM_102("room102", "The Library", "102", "room 102", "library"),
+    ROOM_103("room103", "The Computer Room", "103", "room 103", "computer room");
 
     /**
      * Every area reachable with GO from each area. The inner shack is
@@ -29,7 +33,13 @@ enum CyaLocation {
         SHACK_OUTER, List.of(CEMETARY, SHACK_INNER, HOUSE),
         SHACK_INNER, List.of(SHACK_OUTER),
         CELLAR, List.of(),
-        HOUSE, List.of(CEMETARY, SHACK_OUTER)
+        HOUSE, List.of(CEMETARY, SHACK_OUTER, UPSTAIRS),
+        // The rooms are reached through their doors, not by GO, so the
+        // numbered locks cannot be walked around; GO only leads back out.
+        UPSTAIRS, List.of(HOUSE),
+        ROOM_101, List.of(UPSTAIRS),
+        ROOM_102, List.of(UPSTAIRS),
+        ROOM_103, List.of(UPSTAIRS)
     );
 
     final String id;

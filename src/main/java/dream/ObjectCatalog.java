@@ -20,6 +20,23 @@ final class ObjectCatalog {
         return BY_ID.get(id);
     }
 
+    /**
+     * Looks an object up by id or by any of the names the player could type,
+     * so a preset can name an item the way the game does.
+     */
+    static Interactable find(String name) {
+        Interactable byId = BY_ID.get(name);
+        if (byId != null) {
+            return byId;
+        }
+        for (Interactable object : BY_ID.values()) {
+            if (object.matches(name)) {
+                return object;
+            }
+        }
+        return null;
+    }
+
     private static Map<String, Interactable> index() {
         Map<String, Interactable> byId = new LinkedHashMap<>();
         addAll(byId, Cemetery.objects());
@@ -27,6 +44,10 @@ final class ObjectCatalog {
         addAll(byId, ShackInner.objects());
         addAll(byId, Cellar.objects());
         addAll(byId, House.objects());
+        addAll(byId, Upstairs.objects());
+        addAll(byId, Room101.objects());
+        addAll(byId, Room102.objects());
+        addAll(byId, Room103.objects());
         return byId;
     }
 

@@ -11,11 +11,11 @@ final class Cemetery {
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("graves")
             .names("headstones", "graves", "gravestones", "stones")
-            .look("Headstones lean in a crooked row, none of them with a name left on it. "
+            .look("Headstones lean in a crooked row, the only legible name being a \"Jamison T. Lyle\". "
                 + "Someone has kept them clear of the grass.")
             .interact("You rest a hand on the nearest headstone. It is warm, as if something had been "
                 + "leaning against it.")
-            .refuseTake("You can't take the graves. They are the only company the man has.")
+            .refuseTake(TextSpan.glitching("You can't take the graves. They are the only company we've had.", "we've"))
             .build(),
         Interactable.builder("mysteriousMan")
             .names("mysterious man", "man", "silhouette", "stranger")
@@ -57,7 +57,7 @@ final class Cemetery {
 
     /** Built fresh each time, so a LOOK after the man leaves no longer mentions him. */
     private static List<TextSpan> describeArea() {
-        String description = "You walk into a cemetary, it smells like wet dirt and feels like empty promises."
+        String description = "You look around the old cemetary, it smells like wet dirt and feels like empty promises."
             + " A row of headstones leans in the grass near the gate.";
         if (!SaveState.spokenToMysteriousMan) {
             description += " The vague silhouette of a man is stood motionless at the edge of the cemetary, you can't make out anything about him.";

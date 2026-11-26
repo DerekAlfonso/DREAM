@@ -57,6 +57,9 @@ public final class Terminal {
     /** Shortest gap between two typing clicks, so fast text is not a buzz. */
     private static final int CLICK_INTERVAL_MS = 80;
 
+    /** How long a refused keystroke waits before it can sound again. */
+    private static final int DENIED_INTERVAL_MS = 120;
+
     /** Lines kept in memory. Older ones are unreachable anyway once clamped. */
     private static final int MAX_RETAINED_LINES = 400;
 
@@ -87,6 +90,7 @@ public final class Terminal {
 
     private static int scrollOffset = 0;
     private static long lastClickAt = 0L;
+    private static long lastDeniedAt = 0L;
 
     /** Story threads parked in awaitIdle(), released when the queue drains. */
     private static final List<CountDownLatch> idleWaiters = new ArrayList<>();
@@ -114,6 +118,9 @@ public final class Terminal {
 
     /** Drawn at the caret while the player is typing. */
     private static final String CARET = "|";
+
+    /** Font size the prompt line is drawn at, so its width can be measured. */
+    private static final int INPUT_FONT_SIZE = 15;
 
     /** How long the caret stays on, and then off, while a prompt waits. */
     private static final int CARET_BLINK_MS = 500;
@@ -647,6 +654,13 @@ public final class Terminal {
         finishMessage();
     }
 
+    /** A keystroke's click, silent while typing sounds are turned off. */
+    private static void click() {
+        if (typingSounds) {
+            AudioManager.playTypingClick();
+        }
+    }
+
     /** Rate-limited so a fast crawl does not turn into a solid buzz. */
     private static void playTypingClick() {
         if (!typingSounds) {
@@ -656,6 +670,21 @@ public final class Terminal {
         if (now - lastClickAt >= CLICK_INTERVAL_MS) {
             lastClickAt = now;
             AudioManager.playTypingClick();
+        }
+    }
+
+    /**
+     * The refusal cue, rate-limited the way a click is so holding a key at the
+     * limit does not turn into a solid buzz.
+     */
+    private static void playDenied() {
+        if (!typingSounds) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastDeniedAt >= DENIED_INTERVAL_MS) {
+            lastDeniedAt = now;
+            AudioManager.playTypingDenied();
         }
     }
 
@@ -832,9 +861,11 @@ public final class Terminal {
             line.setY(line.y - scaled(BASE_LINE_HEIGHT));
         }
 
-        Font font = baseFont.deriveFont(Font.PLAIN, (float) scaledFontSize(15));
+        Font font = baseFont.deriveFont(Font.PLAIN,
+            (float) scaledFontSize(INPUT_FONT_SIZE));
         caretVisible = true;
-        inputLine = new TextData(promptSymbol + CARET, startX(), homeY(), 15, Color.GREEN, font);
+        inputLine = new TextData(promptSymbol + CARET, startX(), homeY(),
+            INPUT_FONT_SIZE, Color.GREEN, font);
         activeLines.add(inputLine);
         canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, inputLine);
         startCaretBlink();
@@ -864,11 +895,18 @@ public final class Terminal {
             return;
         }
         if (c >= 32 && c <= 126) {
-            currentInput = currentInput.substring(0, inputCursor)
+            String candidate = currentInput.substring(0, inputCursor)
                 + c
                 + currentInput.substring(inputCursor);
+            // The prompt is one unwrapped line, so anything past the column
+            // would run off the edge of the screen. Refuse the key instead.
+            if (!inputFits(candidate)) {
+                playDenied();
+                return;
+            }
+            currentInput = candidate;
             inputCursor++;
-            AudioManager.playTypingClick();
+            click();
             refreshInputLine();
         }
     }
@@ -881,7 +919,7 @@ public final class Terminal {
         currentInput = currentInput.substring(0, inputCursor - 1)
             + currentInput.substring(inputCursor);
         inputCursor--;
-        AudioManager.playTypingClick();
+        click();
         refreshInputLine();
     }
 
@@ -920,7 +958,7 @@ public final class Terminal {
         }
         historyIndex = inputHistory.size();
 
-        AudioManager.playTypingClick();
+        click();
 
         if (inputResult != null) {
             inputResult.offer(submitted);
@@ -936,8 +974,75 @@ public final class Terminal {
         }
         currentInput = currentInput.substring(0, inputCursor)
             + currentInput.substring(inputCursor + 1);
-        AudioManager.playTypingClick();
+        click();
         refreshInputLine();
+    }
+
+    /**
+     * Deletes the word after the caret, taking any spaces at the caret with
+     * it, the way a word-delete works in a text field.
+     */
+    public static void deleteWordForward() {
+        if (!awaitingInput || inputLine == null) {
+            return;
+        }
+        int end = wordEnd(currentInput, inputCursor);
+        if (end == inputCursor) {
+            return;
+        }
+        currentInput = currentInput.substring(0, inputCursor)
+            + currentInput.substring(end);
+        click();
+        refreshInputLine();
+    }
+
+    /**
+     * Where a word-delete from at ends: past the spaces under the caret and
+     * on to the end of the next word. The caret itself when nothing is left.
+     */
+    static int wordEnd(String text, int at) {
+        int end = Math.max(0, Math.min(at, text.length()));
+        while (end < text.length() && Character.isWhitespace(text.charAt(end))) {
+            end++;
+        }
+        while (end < text.length() && !Character.isWhitespace(text.charAt(end))) {
+            end++;
+        }
+        return end;
+    }
+
+    /**
+     * Deletes the word before the caret, taking the spaces in front of it,
+     * the way a backwards word-delete works in a text field.
+     */
+    public static void deleteWordBackward() {
+        if (!awaitingInput || inputLine == null) {
+            return;
+        }
+        int start = wordStart(currentInput, inputCursor);
+        if (start == inputCursor) {
+            return;
+        }
+        currentInput = currentInput.substring(0, start)
+            + currentInput.substring(inputCursor);
+        inputCursor = start;
+        click();
+        refreshInputLine();
+    }
+
+    /**
+     * Where a backwards word-delete from at stops: past the spaces before the
+     * caret and back to the start of the word in front of them.
+     */
+    static int wordStart(String text, int at) {
+        int start = Math.max(0, Math.min(at, text.length()));
+        while (start > 0 && Character.isWhitespace(text.charAt(start - 1))) {
+            start--;
+        }
+        while (start > 0 && !Character.isWhitespace(text.charAt(start - 1))) {
+            start--;
+        }
+        return start;
     }
 
     /** Moves the caret by delta characters, clamped to the answer. */
@@ -985,9 +1090,9 @@ public final class Terminal {
         } else if (historyIndex < size) {
             historyIndex++;
         }
-        currentInput = historyIndex >= size
+        currentInput = fitAnswer(historyIndex >= size
             ? inputDraft
-            : inputHistory.get(historyIndex);
+            : inputHistory.get(historyIndex));
         inputCursor = currentInput.length();
         refreshInputLine();
     }
@@ -1003,6 +1108,32 @@ public final class Terminal {
             + (caretVisible ? CARET : " ")
             + currentInput.substring(cursor));
         canvas.repaint();
+    }
+
+    /**
+     * True while the answer still fits the text column, with the prompt and
+     * the caret counted in, so the caret itself never sits past the edge.
+     */
+    private static boolean inputFits(String answer) {
+        if (canvas == null) {
+            return true;
+        }
+        Font font = baseFont.deriveFont(Font.PLAIN,
+            (float) scaledFontSize(INPUT_FONT_SIZE));
+        FontMetrics metrics = canvas.getFontMetrics(font);
+        return metrics.stringWidth(promptSymbol + answer + CARET) <= contentWidth();
+    }
+
+    /**
+     * Trims an answer to what the column can show. Only a recalled answer can
+     * be too long, when the window has been made narrower since it was typed.
+     */
+    private static String fitAnswer(String answer) {
+        String fitted = answer;
+        while (!fitted.isEmpty() && !inputFits(fitted)) {
+            fitted = fitted.substring(0, fitted.length() - 1);
+        }
+        return fitted;
     }
 
     public static boolean isAwaitingInput() {

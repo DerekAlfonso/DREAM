@@ -30,8 +30,19 @@ game:
 | `--new` | Clear the save and start the story from the beginning |
 | `--from-save` | Continue the saved story immediately |
 | `--skip-intro` | Start at the CYA with the minigames already done |
-| `--scene=cemetary` | Resume at a CYA checkpoint (`cemetary`, `shackOuter`, `shackInner`, `house`) |
+| `--scene=<area>` | Drop straight into a CYA checkpoint: `cemetary`, `shackOuter`, `shackInner`, `cellar`, `house`, `upstairs`, `room101`, `room102`, `room103` |
+| `--preset=<list>` | Start with story flags and carried items already set (see below) |
 | `--doom` | Jump straight to doom.exe |
+
+`--preset` takes a comma-separated list. `hatch`, `panel`, `oiled`, `solved`
+and `man` set the matching story flags; anything else is looked up as an item,
+by id or by any of the names the game accepts, so `axe`, `lantern`, `key` and
+`paper` all work. For example, to land in the cellar with everything the valve
+puzzle needs:
+
+```bash
+java -jar target/dream.jar --scene=cellar --preset=hatch,panel,oiled,axe,lantern,key
+```
 
 Download builds from a successful **Desktop builds** GitHub Actions run. The
 Windows installer (`.exe`) and portable build (`.zip`) are separate direct
@@ -58,6 +69,8 @@ it runs offline and can be copied anywhere on its own.
 | `←` / `→`, `Home` / `End` | Move the input caret |
 | `Up` / `Down` | Recall earlier answers |
 | `Delete` | Delete under the caret |
+| `Ctrl` + `Delete` | Delete the next word |
+| `Ctrl` + `Backspace` | Delete the previous word |
 | `Page Up` / `Page Down` | Scroll a page back or forward |
 | `Home` / `End` while not typing | Jump to the oldest or newest line |
 | Mouse wheel | Scroll back through the log |

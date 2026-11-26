@@ -43,6 +43,9 @@ public final class AudioManager {
         "ScrollSound4", "ScrollSound5", "ScrollSound6"
     };
 
+    /** Played when the prompt refuses a keystroke because the answer is full. */
+    public static final String TYPING_DENIED = "typingDenied";
+
     /** How many simultaneous copies of one effect we allow. */
     private static final int VOICES_PER_SOUND = 4;
 
@@ -237,6 +240,11 @@ public final class AudioManager {
         if (KEYBOARD_CLICKS.length > 0) {
             playSfx(KEYBOARD_CLICKS[RANDOM.nextInt(KEYBOARD_CLICKS.length)], TYPING_GAIN);
         }
+    }
+
+    /** The refusal cue for a keystroke the prompt will not accept. */
+    public static void playTypingDenied() {
+        playSfx(TYPING_DENIED, TYPING_GAIN);
     }
 
     /** Plays one effect. Returns immediately; overlapping calls are fine. */

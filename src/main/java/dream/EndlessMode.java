@@ -40,6 +40,9 @@ final class EndlessMode {
     private int room;
     private int roomsCleared;
 
+    /** Set when the player types SKIP, so every loop unwinds to the story. */
+    private boolean skipped;
+
     private EndlessMode(Input input) {
         this.input = input;
         upgrades = List.of(
@@ -58,11 +61,14 @@ final class EndlessMode {
         );
     }
 
-    static void play(Input input) throws InterruptedException {
-        new EndlessMode(input).run();
+    /**
+     * @return true when the run ended normally, false when the player typed SKIP
+     */
+    static boolean play(Input input) throws InterruptedException {
+        return new EndlessMode(input).run();
     }
 
-    private void run() throws InterruptedException {
+    private boolean run() throws InterruptedException {
         showIntro();
 
         boolean enterNextRoom = true;
@@ -70,23 +76,33 @@ final class EndlessMode {
             if (enterNextRoom) {
                 room++;
                 if (!fightRoom()) {
+                    if (skipped) {
+                        return false;
+                    }
                     // Dying ends the run; getting out alive still counts as leaving.
                     finishRun(player.isAlive());
-                    return;
+                    return true;
                 }
                 enterNextRoom = false;
             }
 
             String choice = corridorChoice();
+            if (skipped) {
+                return false;
+            }
             if (choice.equals("room")) {
                 enterNextRoom = true;
             } else if (choice.equals("shop")) {
                 openShop();
+                if (skipped) {
+                    return false;
+                }
             } else {
                 finishRun(true);
-                return;
+                return true;
             }
         }
+        return true;
     }
 
     private void showIntro() {
@@ -98,7 +114,18 @@ final class EndlessMode {
             + " LEAVE a fight.", 20, 15, Color.WHITE);
         Terminal.print("Between rooms, choose another room, visit the shop, or LEAVE.",
             20, 15, Color.WHITE);
+        Terminal.print("Type SKIP at any prompt to abandon the run and go back to the story.",
+            20, 15, Color.GREEN);
         Terminal.blankLine();
+    }
+
+    /** Reads an answer, noticing SKIP wherever the run happens to be. */
+    private String ask() throws InterruptedException {
+        String answer = input.read();
+        if (matches(answer, "skip")) {
+            skipped = true;
+        }
+        return answer;
     }
 
     private boolean fightRoom() throws InterruptedException {
@@ -120,7 +147,10 @@ final class EndlessMode {
                 ? "type ATTACK to strike, HEAL to use a potion, or LEAVE to get out."
                 : "type ATTACK to strike or HEAL to use a potion.",
                 15, 15, Color.WHITE);
-            String action = input.read();
+            String action = ask();
+            if (skipped) {
+                return false;
+            }
 
             if (mayLeave && matches(action, "leave", "flee", "run")) {
                 Terminal.print("You back away from the " + enemy.type.name
@@ -240,9 +270,13 @@ final class EndlessMode {
         Terminal.print("[1] Enter the next room", 15, 15, Color.WHITE);
         Terminal.print("[2] Visit the shop", 15, 15, Color.WHITE);
         Terminal.print("[3] Leave the dungeon", 15, 15, Color.WHITE);
+        Terminal.print("type SKIP to abandon the run.", 15, 15, Color.GREEN);
 
         while (true) {
-            String choice = input.read();
+            String choice = ask();
+            if (skipped) {
+                return "leave";
+            }
             if (matches(choice, "1", "next", "room", "new room")) {
                 return "room";
             }
@@ -294,7 +328,10 @@ final class EndlessMode {
             Terminal.print("type BACK to return to the corridor.",
                 15, 15, Color.RED);
 
-            String choice = input.read();
+            String choice = ask();
+            if (skipped) {
+                return;
+            }
             if (matches(choice, "back", "return")) {
                 return;
             }

@@ -16,6 +16,12 @@ import java.util.function.Supplier;
  */
 final class Interactable {
 
+    /** A closing scene: prints its own lines, and may pause while doing it. */
+    @FunctionalInterface
+    interface Finale {
+        void play() throws InterruptedException;
+    }
+
     final String id;
     final String displayName;
     final List<String> names;
@@ -30,6 +36,10 @@ final class Interactable {
     private final Supplier<String> interaction;
 
     final String takeText;
+
+    /** Styled refusal, for a message that needs more than plain text. */
+    private final List<TextSpan> takeSpans;
+
     final boolean takeable;
     final Runnable onTake;
 
@@ -39,6 +49,12 @@ final class Interactable {
     /** The object is out of the scene while this holds; null means it never is. */
     private final BooleanSupplier hiddenWhen;
 
+    /** The closing scene played in place of the usual line when the run ends here. */
+    private final Finale finale;
+
+    /** While this holds, interacting with the object finishes the story. */
+    private final BooleanSupplier endsScene;
+
     private Interactable(Builder builder) {
         this.id = builder.id;
         this.displayName = builder.displayName;
@@ -47,10 +63,13 @@ final class Interactable {
         this.lookSpans = builder.lookSpans == null ? null : List.copyOf(builder.lookSpans);
         this.interaction = builder.interaction;
         this.takeText = builder.takeText;
+        this.takeSpans = builder.takeSpans == null ? null : List.copyOf(builder.takeSpans);
         this.takeable = builder.takeable;
         this.onTake = builder.onTake;
         this.travel = builder.travel;
         this.hiddenWhen = builder.hiddenWhen;
+        this.finale = builder.finale;
+        this.endsScene = builder.endsScene;
     }
 
     /** True while the object is absent from its scene. */
@@ -58,14 +77,47 @@ final class Interactable {
         return hiddenWhen != null && hiddenWhen.getAsBoolean();
     }
 
+    /** True while using this object should finish the run instead of staying. */
+    boolean endsScene() {
+        return finale != null && endsScene.getAsBoolean();
+    }
+
+    /** Plays the closing scene. Only call it when {@link #endsScene()} holds. */
+    void playFinale() throws InterruptedException {
+        finale.play();
+    }
+
     /**
      * The description to print: the object's styled spans when it has them,
      * otherwise its text with the object's name picked out.
      */
     List<TextSpan> lookSpans() {
-        return lookSpans != null
+        return highlightNames(lookSpans != null
             ? lookSpans
-            : TextSpan.highlighting(lookText.get(), displayName, Scene.NAME);
+            : List.of(TextSpan.of(lookText.get())));
+    }
+
+    /**
+     * Marks every name this object answers to inside a line about it, so a
+     * description that says "silhouette" reads like the name in the room.
+     */
+    List<TextSpan> highlightNames(List<TextSpan> spans) {
+        return TextSpan.highlighting(spans, Scene.NAME, names.toArray(new String[0]));
+    }
+
+    /** The same, for a line that is still plain text. */
+    List<TextSpan> highlightNames(String text) {
+        return TextSpan.highlighting(text, Scene.NAME, names.toArray(new String[0]));
+    }
+
+    /**
+     * What the player reads when they try to take this object: its styled spans
+     * when it has them, otherwise its text with the object's name picked out.
+     */
+    List<TextSpan> takeSpans() {
+        return highlightNames(takeSpans != null
+            ? takeSpans
+            : List.of(TextSpan.of(takeText)));
     }
 
     /** Runs the interaction, then returns the line to print for it. */
@@ -103,10 +155,13 @@ final class Interactable {
         private List<TextSpan> lookSpans;
         private Supplier<String> interaction;
         private String takeText;
+        private List<TextSpan> takeSpans;
         private boolean takeable;
         private Runnable onTake;
         private Supplier<CyaLocation> travel;
         private BooleanSupplier hiddenWhen;
+        private Finale finale;
+        private BooleanSupplier endsScene;
 
         private Builder(String id) {
             this.id = id;
@@ -184,12 +239,24 @@ final class Interactable {
             return this;
         }
 
+        /**
+         * Makes using this object the end of the story while the condition
+         * holds: its finale plays instead of the usual line, and the scene
+         * stops once it has been read.
+         */
+        Builder endsSceneWhen(BooleanSupplier condition, Finale finale) {
+            endsScene = condition;
+            this.finale = finale;
+            return this;
+        }
+
         Builder take(String text) {
             return take(text, null);
         }
 
         Builder take(String text, Runnable action) {
             takeText = text;
+            takeSpans = null;
             onTake = action;
             takeable = true;
             return this;
@@ -202,6 +269,14 @@ final class Interactable {
          */
         Builder refuseTake(String text) {
             takeText = text;
+            takeSpans = null;
+            return this;
+        }
+
+        /** The same, for a refusal that carries its own styling. */
+        Builder refuseTake(List<TextSpan> spans) {
+            takeSpans = List.copyOf(spans);
+            takeText = null;
             return this;
         }
 
@@ -215,7 +290,7 @@ final class Interactable {
             if (interaction == null) {
                 interaction = () -> "Nothing happens.";
             }
-            if (takeText == null) {
+            if (takeText == null && takeSpans == null) {
                 takeText = "You can't take the " + displayName + ".";
             }
             return new Interactable(this);
