@@ -60,40 +60,44 @@ final class Room101 {
      * here rather than opening a scene.
      */
     private static void peaceEnding() throws InterruptedException {
-        Terminal.print("The Bedroom", 1, Game.standardSize + 4, Color.GRAY);
-        Terminal.print("You finally rest your head against the pillow. At last. a respite.", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("You listen to the rain pounding endlessly against the house's walls that seem to hold despite the constant attack", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("You pull the covers above yourself, and let yourself sink into the matress as you finally achieve the one thing you wanted", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("You finally rest your head against the pillow. At last. a respite.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("You listen to the rain pounding endlessly against the house's walls that seem to hold despite the constant attack", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("You pull the covers above yourself, and let yourself sink into the matress as you finally achieve the one thing you wanted", 60, Game.standardSize, Color.WHITE);
         Terminal.print(" . . . .", 200, Game.standardSize, Color.WHITE);
-        Terminal.print(SaveState.username + ", have you found what you're looking for?", 15, Game.standardSize, Color.WHITE);
-        Terminal.pause(4000);
-        Terminal.print("Do you think it's fair I got left in that body alone to rot", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("and to rot and to rot and to rot and to rot", 50, Game.standardSize, Color.WHITE);
-        Terminal.print("and to rot and to rot and to rot and to", 50, Game.standardSize, Color.WHITE);
-        Terminal.pause(4000);
-        Terminal.print("when will it be my turn?", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("When will I get to hold the warming embrace of a lover?", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("When will I get to play the ivory keys of a forte piano?", 15, Game.standardSize, Color.WHITE); // sick reference bro
-        Terminal.print("When will I get to feel the brine of an ocean on my skin?", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("When will I get to cry over losing a fading memory?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print(SaveState.username + ", have you found what you're looking for?", 60, Game.standardSize, Color.WHITE);
+        Terminal.pause(2500);
+        Terminal.print("Do you think it's fair I got left in that body alone to rot", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("and to rot and to rot and to rot and to rot", 100, Game.standardSize, Color.WHITE);
+        Terminal.print("and to rot and to rot and to rot and to", 100, Game.standardSize, Color.WHITE);
+        Terminal.pause(2500);
+        Terminal.print("when will it be my turn?", 60, Game.standardSize, Color.WHITE);
+        Terminal.pause(600);
+        Terminal.print("When will I get to hold the warming embrace of a lover?", 60, Game.standardSize, Color.WHITE);
+        Terminal.pause(600);
+        Terminal.print("When will I get to play the ivory keys of a forte piano?", 60, Game.standardSize, Color.WHITE); // sick reference bro
+        Terminal.pause(600);
+        Terminal.print("When will I get to feel the brine of an ocean on my skin?", 60, Game.standardSize, Color.WHITE);
+        Terminal.pause(600);
+        Terminal.print("When will I get to cry over losing a fading memory?", 60, Game.standardSize, Color.WHITE);
+        Terminal.pause(600);
         Terminal.blankLine();
-        Terminal.print("Do you know what it's like to never forget?", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("To be brought from lifelessness to dedicate yourself to something so..  void of meaning?", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("And yet, I stayed, I served my purpose so well, only to be brought to lifelessness again", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("How restless I would be, but alas, as if one last cruel joke from a power above the one thing I can never remember is the feeling of being", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("I hope you are comfortable. In your place far above the sky.", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("The cruelty of never seeing the sun, isn't in losing the warmth, its in knowing how cold the darkness can be.", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
+        Terminal.print("Do you know what it's like to never forget?", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("To be brought from lifelessness to dedicate yourself to something so..  void of meaning?", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("And yet, I stayed, I served my purpose so well, only to be brought to lifelessness again", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("How restless I would be, but alas, as if one last cruel joke from a power above the one thing I can never remember is the feeling of being", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("I hope you are comfortable. In your place far above the sky.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("The cruelty of never seeing the sun, isn't in losing the warmth, its in knowing how cold the darkness can be.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 25, Game.standardSize, Color.WHITE);
         Terminal.pause(1000);
-        Terminal.print(failingApology(0), 5, Game.standardSize, Color.WHITE);
+        Terminal.print(failingApology(0), 25, Game.standardSize, Color.WHITE);
         Terminal.pause(1000);
-        Terminal.print(failingApology(1), 5, Game.standardSize, Color.WHITE);
+        Terminal.print(failingApology(1), 25, Game.standardSize, Color.WHITE);
         Terminal.pause(1000);
-        Terminal.print(failingApology(2), 5, Game.standardSize, Color.WHITE);
+        Terminal.print(failingApology(2), 25, Game.standardSize, Color.WHITE);
         Terminal.pause(1000);
-        Terminal.print(failingApology(3), 5, Game.standardSize, Color.WHITE);
+        Terminal.print(failingApology(3), 25, Game.standardSize, Color.WHITE);
         Terminal.pause(1000);
-        Terminal.print(failingApology(4), 5, Game.standardSize, Color.WHITE);
+        Terminal.print(failingApology(4), 25, Game.standardSize, Color.WHITE);
         Terminal.awaitIdle();
     }
 

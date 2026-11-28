@@ -287,8 +287,9 @@ public class Game implements Runnable {
 
     /**
      * Drops the CYA at one checkpoint with the flags that point assumes, then
-     * plays from there. The room checkpoints also set the purpose, so the
-     * ending door and its key behave the way they would in a real run.
+     * runs the main story from there, so the CYA ends with its report log.
+     * The room checkpoints also set the purpose, so the ending door and its
+     * key behave the way they would in a real run.
      */
     private void loadCheckpoint(CyaLocation destination) throws InterruptedException {
         if (!SaveState.hasProfile()) {
@@ -331,8 +332,7 @@ public class Game implements Runnable {
         SaveState.save();
 
         Terminal.print("loading checkpoint: " + destination.displayName, 20, standardSize, Color.GREEN);
-        Terminal.divider();
-        playCYA();
+        runProjectDream();
     }
 
     // --------------------------------------------------------- ProjectDream.iso the main game file

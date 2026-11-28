@@ -63,12 +63,15 @@ final class Room102 {
 
     /** The answers ending: the one book that is not a copy, and the name it holds. */
     private static void answersEnding() throws InterruptedException {
-        Terminal.print("you sit at the desk and turn the black book to its first page. every "
-            + "page carries the sentence that fills the screen down the landing, printed over "
-            + "and over, until the last page. there, in handwriting, is your name.", 15,
-            Game.standardSize, Color.WHITE);
-        Terminal.print("you were looking for answers. the answer is that the house knew you "
-            + "were coming.", 20, Game.standardSize, Color.GREEN);
+        Terminal.print("You settle onto the desk, there's a book open to a chapter in an otherwise boring looking computer science text book", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("It spouts vaguely interesting points about artificial intelligence", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("There's a name on the desk of an Amélie Marin, how very... French", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("you read the books around the library, the books almost entirely consist of volumes of Amélie's family history and how the house was built.. absolutely riveting content about relaxed zoning laws and distant cousins, truly a page turner cover to cover.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("Finally, the book you're looking for, a book about " + SaveState.userName + ", a familiar name", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("You open the book and look through the chapters", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("The pages are unintelligible, you can hardly make out a word", 60, Game.standardSize, Color.WHITE);
+        
+
         Terminal.blankLine();
     }
 }

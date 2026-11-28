@@ -183,11 +183,24 @@ public final class Terminal {
     }
 
     /**
-     * Sleeps on the story thread, but returns early when the player presses
-     * Enter. Story beats and faked loads both use this.
+     * Waits out a story beat on the story thread, but returns early when the
+     * player presses Enter. Story beats and faked loads both use this.
+     *
+     * <p>{@link #print} only queues its text, so the beat first waits for
+     * everything already queued to finish typing. Without that, the wait ran
+     * while the sentence was still being written and was over before the line
+     * had even landed, which is why consecutive beats felt out of step.
      */
     public static void pause(long millis) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + Math.max(0L, millis);
+        if (millis <= 0) {
+            return;
+        }
+        // Sleeping on the event thread would freeze the window, and the latch
+        // in awaitIdle() could never be released from there anyway.
+        if (!SwingUtilities.isEventDispatchThread()) {
+            awaitIdle();
+        }
+        long deadline = System.currentTimeMillis() + millis;
         while (true) {
             long remaining = deadline - System.currentTimeMillis();
             if (remaining <= 0) {
