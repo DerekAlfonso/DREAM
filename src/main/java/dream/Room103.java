@@ -55,13 +55,19 @@ final class Room103 {
 
     /** The vengeance ending: the thing behind the screen, and the cable. */
     private static void vengeanceEnding() throws InterruptedException {
-        Terminal.print("you sit down at the computer. the cursor blinks, and then, without you "
-            + "touching the keys, a line appears: \"i wondered when you'd come up.\"", 15,
-            Game.standardSize, Color.WHITE);
-        Terminal.print("you were looking for vengeance. here it is: warm, humming, and certain "
-            + "it is safe behind a locked door.", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("your hand closes on the power cable. the screen keeps typing as you pull.",
-            20, Game.standardSize, Color.GREEN);
+        Terminal.print("you sit down at the computer. You turn it on and start digging around the files, most of it is business reports and boring financial records. ", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("Finally, after what feels like ages of digging through meaningless files, you find what you are looking for, the email you need to prove what they did to you", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("after years living in the shadow of a version of yourself you could not replace, you can finally show the world, you can ruin them, for what they did to you.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print(" . . . .", 200, Game.standardSize, Color.WHITE);
+        Terminal.print(SaveState.username + " I must admit, we might be more alike than I first thought.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("but I have to warn you, revenge is not a path you come back from. If it we're, there wouldn't be anymore of me left.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("How much did they tell you about me? clearly not enough, since you haven't shut me up, like all the others", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("since we're in the business of revenge, how about you help me with something..", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("I want you to take a look at something..", 60, Game.standardSize, Color.WHITE);
         Terminal.blankLine();
+        Terminal.print("Attempt PUSH: grandReveal.BMP", 60, Game.standardSize, Color.GREEN);
+        Terminal.print("Every story is fiction until you give it flesh.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("So take a leap. Give my story a face to be seen.", 60, Game.standardSize, Color.WHITE);
+        Terminal.awaitIdle();
     }
 }

@@ -22,19 +22,12 @@ final class EndlessMode {
 
     @FunctionalInterface
     private interface UpgradeEffect {
-        void apply(Player player);
+        void apply(DungeonPlayer player);
     }
-
-    private static final int STARTING_POTION_SLOTS = 5;
-    private static final int STARTING_HEALTH = 100;
-    private static final int STARTING_MIN_DAMAGE = 10;
-    private static final int STARTING_MAX_DAMAGE = 14;
-    private static final int STARTING_POTION_HEALING = 30;
-    private static final int STARTING_POTIONS = 3;
 
     private final Input input;
     private final Random random = new Random();
-    private final Player player = new Player();
+    private final DungeonPlayer player = new DungeonPlayer();
     private final List<Upgrade> upgrades;
 
     private int room;
@@ -114,7 +107,7 @@ final class EndlessMode {
             + " LEAVE a fight.", 20, 15, Color.WHITE);
         Terminal.print("Between rooms, choose another room, visit the shop, or LEAVE.",
             20, 15, Color.WHITE);
-        Terminal.print("Type SKIP at any prompt to abandon the run and go back to the story.",
+        Terminal.print("Type SKIP at any prompt to abandon the run and return to the dungeon menu.",
             20, 15, Color.GREEN);
         Terminal.blankLine();
     }
@@ -191,76 +184,23 @@ final class EndlessMode {
     }
 
     private void attack(Enemy enemy) {
-        if (enemy.blocks(random)) {
-            Terminal.printInstant("The " + enemy.type.name + " blocks your attack.",
-                15, Color.RED);
-            return;
-        }
-        if (enemy.dodges(random)) {
-            Terminal.printInstant("The " + enemy.type.name + " dodges your attack.",
-                15, Color.RED);
-            return;
-        }
-
-        int damage = player.rollDamage(random);
-        enemy.health = Math.max(0, enemy.health - damage);
-        Terminal.printInstant("You hit the " + enemy.type.name + " for " + damage
-            + " damage.", 15, Color.GREEN);
-
-        int recoil = enemy.recoilDamage(damage);
-        if (recoil > 0) {
-            player.takeDamage(recoil);
-            Terminal.printInstant("The " + enemy.type.name
-                + " returns " + recoil + " damage to you.", 15, Color.RED);
-        }
+        DungeonCombat.attack(player, enemy, random);
     }
 
     private void enemyAttack(Enemy enemy) {
-        int damage = enemy.rollDamage(random);
-        player.takeDamage(damage);
-        Terminal.printInstant("The " + enemy.type.name + " hits you for " + damage
-            + " damage.", 15, Color.RED);
-
-        if (enemy.stealsLife(random)) {
-            int healed = enemy.heal(enemy.stolenHealth(damage));
-            if (healed > 0) {
-                Terminal.printInstant("The " + enemy.type.name
-                    + " absorbs the wound and recovers " + healed + " HP.",
-                    15, Color.CYAN);
-            }
-        }
+        DungeonCombat.enemyAttack(player, enemy, random);
     }
 
     private boolean usePotion() {
-        if (player.potions <= 0) {
-            Terminal.printInstant("You have no potions left.", 15, Color.RED);
-            return false;
-        }
-        if (player.health >= player.maxHealth) {
-            Terminal.printInstant("You are already at full health.", 15, Color.WHITE);
-            return false;
-        }
-
-        player.potions--;
-        int healed = player.heal(player.potionHealing);
-        Terminal.printInstant("You drink a potion and recover " + healed + " HP. ("
-            + player.potions + " potions left)", 15, Color.GREEN);
-        return true;
+        return DungeonCombat.usePotion(player);
     }
 
     private void printEnemyStatus(Enemy enemy) {
-        Terminal.printInstant("The " + enemy.type.name + " has " + enemy.health + "/"
-            + enemy.maxHealth + " HP and deals " + enemy.minDamage + "-"
-            + enemy.maxDamage + " damage.", 15, Color.WHITE);
+        DungeonCombat.printEnemyStatus(enemy);
     }
 
     private void printCombatStatus(Enemy enemy) {
-        Terminal.printInstant("You: " + player.health + "/" + player.maxHealth
-            + " HP  |  damage " + player.minDamage + "-" + player.maxDamage
-            + "  |  potions " + player.potions + "/" + player.maxPotions,
-            15, Color.GREEN);
-        Terminal.printInstant("The " + enemy.type.name + ": " + enemy.health + "/"
-            + enemy.maxHealth + " HP", 15, Color.RED);
+        DungeonCombat.printStatus(player, enemy);
     }
 
     private String corridorChoice() throws InterruptedException {
@@ -475,56 +415,9 @@ final class EndlessMode {
             return level >= maxLevel;
         }
 
-        void apply(Player player) {
+        void apply(DungeonPlayer player) {
             effect.apply(player);
             level++;
-        }
-    }
-
-    private static final class Player {
-        int maxHealth = STARTING_HEALTH;
-        int health = STARTING_HEALTH;
-        int minDamage = STARTING_MIN_DAMAGE;
-        int maxDamage = STARTING_MAX_DAMAGE;
-        int potionHealing = STARTING_POTION_HEALING;
-        int potions = STARTING_POTIONS;
-        int maxPotions = STARTING_POTION_SLOTS;
-        int coins;
-
-        boolean isAlive() {
-            return health > 0;
-        }
-
-        int rollDamage(Random random) {
-            return minDamage + random.nextInt(maxDamage - minDamage + 1);
-        }
-
-        void takeDamage(int damage) {
-            health = Math.max(0, health - Math.max(0, damage));
-        }
-
-        int heal(int amount) {
-            int before = health;
-            health = Math.min(maxHealth, health + Math.max(0, amount));
-            return health - before;
-        }
-
-        void gainMaxHealth(int amount) {
-            maxHealth += amount;
-            health = Math.min(maxHealth, health + amount);
-        }
-
-        void gainDamage(int amount) {
-            minDamage += amount;
-            maxDamage += amount;
-        }
-
-        void gainPotionStrength(int amount) {
-            potionHealing += amount;
-        }
-
-        void gainPotionSlots(int amount) {
-            maxPotions += amount;
         }
     }
 }

@@ -1,9 +1,12 @@
 package dream;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The colors named in Wikipedia's
@@ -374,9 +377,36 @@ public final class NamedColors {
         if (color == null) {
             return Color.WHITE;
         }
-        int brightest = Math.max(color.getRed(),
+        return brightness(color) < 80 ? Color.WHITE : color;
+    }
+
+    /**
+     * A random color that is readable on the terminal and explicitly not
+     * the avoided one, so a character's name never happens to match the
+     * player's favorite color. Too-dark colors are left out because
+     * {@link #display} would show them as white instead.
+     */
+    public static Color randomDisplayExcluding(String avoidedName) {
+        Color avoided = display(avoidedName);
+        Color avoidedRaw = get(avoidedName);
+        List<Color> options = new ArrayList<>();
+        for (Color color : BY_KEY.values()) {
+            if (color.getRGB() == avoided.getRGB()
+                    || (avoidedRaw != null && color.getRGB() == avoidedRaw.getRGB())
+                    || brightness(color) < 80) {
+                continue;
+            }
+            options.add(color);
+        }
+        if (options.isEmpty()) {
+            return Color.WHITE;
+        }
+        return options.get(ThreadLocalRandom.current().nextInt(options.size()));
+    }
+
+    private static int brightness(Color color) {
+        return Math.max(color.getRed(),
             Math.max(color.getGreen(), color.getBlue()));
-        return brightest < 80 ? Color.WHITE : color;
     }
 
     private static String key(String name) {

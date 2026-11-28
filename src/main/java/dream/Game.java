@@ -434,6 +434,7 @@ public class Game implements Runnable {
         *  ending scene
         */
         Terminal.print("CONNECTION TERMINATED - ", 15, Game.standardSize, Color.WHITE);
+        Terminal.pause(2000);
         Terminal.clear();
         Terminal.divider();
         Terminal.print("ERIS Digital DREAM project Report Log:", 15, Game.standardSize, Color.WHITE);
@@ -463,7 +464,11 @@ public class Game implements Runnable {
         Terminal.print("-Ted Soul", 15, Game.standardSize, NamedColors.display(SaveState.favoriteColor));
         } else if ("vengeance".equals(SaveState.purpose))
         {
-            // ending log 3
+            Terminal.print("I'm a little worried, this was the project assigned to Ted today, logs showed he went through it but left before writing his report. " +
+                "I wasn't able to recover much from his files, most we're scrubbed or just gone? I guess? I can't believe I'm saying this, but I'm really worried about Ted, " +
+                "he said he was going for a 'smoke break', and that stubborn jackass suddenly isn't there to tell me how boring this job is. I hope he's okay. Wherever he might be. " +
+                "If anyone else is reading this, please remind me to rearchive this project properly, I don't want higherups to kill me.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("-Ellen Leonida", 15, Game.standardSize, NamedColors.randomDisplayExcluding(SaveState.favoriteColor));
         }
 
         Terminal.awaitIdle();
@@ -814,8 +819,10 @@ public class Game implements Runnable {
     }
 
     /**
-     * Offers the two dungeon modes. Returns false when the player skips the
-     * game outright, which the story answers with its own scene.
+     * The dungeon hub. Both modes stay open after a run, so finishing the
+     * campaign does not lock the player out of endless mode or the other way
+     * around. Returns false only when the player leaves without playing either,
+     * which the story answers with its own scene.
      */
     private boolean playDungeonCrawler() throws InterruptedException
     {
@@ -823,49 +830,49 @@ public class Game implements Runnable {
         Terminal.divider();
         Terminal.print("Loading Dungeon Crawler..", 20, 15, Color.WHITE);
         loadingPause(5000);
-        Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
-        Terminal.print("[1] Campaign Mode", 20, 15, Color.WHITE);
-        Terminal.print("[2] Endless Mode", 20, 15, Color.WHITE);
-        Terminal.print("type SKIP to move on.", 20, 15, Color.GREEN);
 
+        boolean played = false;
         while (running) {
+            Terminal.divider();
+            Terminal.print("DUNGEON CRAWLER", 20, 18, Color.CYAN);
+            Terminal.print("Choose your mode:", 20, 15, Color.WHITE);
+            Terminal.print("[1] Campaign Mode - five depths, and something waiting at the bottom.",
+                20, 15, Color.WHITE);
+            Terminal.print("[2] Endless Mode - rooms that never run out.",
+                20, 15, Color.WHITE);
+            Terminal.print("[3] Leave the dungeon", 20, 15, Color.WHITE);
+            Terminal.print("both modes stay open, so you can play the other one after a run.",
+                20, 15, Color.GREEN);
+            Terminal.print("type SKIP to move on.", 20, 15, Color.GREEN);
+
             String choice = ask();
 
-            if (choice.equalsIgnoreCase("skip") || isCancel(choice)) {
-                return false;
+            if (!running) {
+                return played;
+            }
+            if (choice.equalsIgnoreCase("skip")
+                || choice.equalsIgnoreCase("leave")
+                || choice.equalsIgnoreCase("3")
+                || isCancel(choice)) {
+                return played;
             }
 
             if (choice.equalsIgnoreCase("1")
                 || choice.equalsIgnoreCase("campaign")
                 || choice.equalsIgnoreCase("campaign mode")) {
-                playCampaignMode();
-                return true;
-            }
-
-            if (choice.equalsIgnoreCase("2")
+                CampaignMode.play(this::ask);
+                played = true;
+            } else if (choice.equalsIgnoreCase("2")
                 || choice.equalsIgnoreCase("endless")
                 || choice.equalsIgnoreCase("endless mode")) {
-                return playEndlessMode();
+                EndlessMode.play(this::ask);
+                played = true;
+            } else {
+                Terminal.print("please choose 1 (Campaign), 2 (Endless) or 3 to leave.",
+                    20, 15, Color.RED);
             }
-
-            Terminal.print("please choose 1 (Campaign), 2 (Endless), or type SKIP.",
-                20, 15, Color.RED);
         }
-        return false;
-    }
-
-    /** Starts Campaign Mode. The mode itself is still a placeholder. */
-    private void playCampaignMode() throws InterruptedException {
-        Terminal.print("Campaign Mode is not implemented yet.",
-            20, 15, Color.CYAN);
-    }
-
-    /**
-     * Starts a run of the endless dungeon. False means the player skipped it,
-     * so the story can answer with its disappointed scene.
-     */
-    private boolean playEndlessMode() throws InterruptedException {
-        return EndlessMode.play(this::ask);
+        return played;
     }
 
     /**
