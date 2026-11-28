@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -227,12 +229,110 @@ public class Game implements Runnable {
             runSettings();
         } else if (normalized.equals("credits.txt")) {
             runCredits();
+        } else if (normalized.equals("cheats.img")) {
+            runCheats();
         } else if (normalized.equals("doom.exe")) {
             // But can it run doom? -- not present in list
             Doom.play(this::ask);
         } else {
             Terminal.print("please select a valid file name", 20, 15, Color.RED);
         }
+    }
+
+    /**
+     * The unlisted CHEATS.IMG file: CYA checkpoints for testing a scene
+     * without playing up to it. It never appears in the boot menu.
+     */
+    private void runCheats() throws InterruptedException {
+        Terminal.divider();
+        Terminal.print("CHEATS.IMG", 20, standardSize + 2, Color.GREEN);
+        Terminal.print("test checkpoints. this file is not listed.", 15, standardSize, Color.WHITE);
+        printCheckpoint("1", "the cemetary, start of the CYA");
+        printCheckpoint("2", "the outer shack");
+        printCheckpoint("3", "the inner shack");
+        printCheckpoint("4", "the cellar (hatch open, lantern and rusty key carried)");
+        printCheckpoint("5", "the house (cellar puzzle solved)");
+        printCheckpoint("6", "upstairs (cellar puzzle solved)");
+        printCheckpoint("7", "room 101 (peace purpose)");
+        printCheckpoint("8", "room 102 (answers purpose)");
+        printCheckpoint("9", "room 103 (vengeance purpose)");
+        printCheckpoint("0", "back");
+
+        String choice = ask().trim();
+        if (choice.isEmpty() || choice.equals("0") || isBackCommand(choice)) {
+            return;
+        }
+        CyaLocation destination = switch (choice) {
+            case "1" -> CyaLocation.CEMETARY;
+            case "2" -> CyaLocation.SHACK_OUTER;
+            case "3" -> CyaLocation.SHACK_INNER;
+            case "4" -> CyaLocation.CELLAR;
+            case "5" -> CyaLocation.HOUSE;
+            case "6" -> CyaLocation.UPSTAIRS;
+            case "7" -> CyaLocation.ROOM_101;
+            case "8" -> CyaLocation.ROOM_102;
+            case "9" -> CyaLocation.ROOM_103;
+            default -> null;
+        };
+        if (destination == null) {
+            Terminal.print("no checkpoint called \"" + choice + "\".", 15, standardSize, Color.RED);
+            return;
+        }
+        loadCheckpoint(destination);
+    }
+
+    private static void printCheckpoint(String key, String label) {
+        Terminal.print("[" + key + "] " + label, 15, standardSize, Color.WHITE);
+    }
+
+    /**
+     * Drops the CYA at one checkpoint with the flags that point assumes, then
+     * plays from there. The room checkpoints also set the purpose, so the
+     * ending door and its key behave the way they would in a real run.
+     */
+    private void loadCheckpoint(CyaLocation destination) throws InterruptedException {
+        if (!SaveState.hasProfile()) {
+            SaveState.username = "tester";
+            SaveState.cpuName = "ERIS";
+        }
+        if (SaveState.favoriteColor == null) {
+            SaveState.favoriteColor = "green";
+        }
+
+        if (destination == CyaLocation.ROOM_101) {
+            SaveState.purpose = "peace";
+        } else if (destination == CyaLocation.ROOM_102) {
+            SaveState.purpose = "answers";
+        } else if (destination == CyaLocation.ROOM_103) {
+            SaveState.purpose = "vengeance";
+        }
+
+        if (destination == CyaLocation.CELLAR) {
+            SaveState.hatchBroken = true;
+            SaveState.valvesOiled = false;
+            SaveState.panelOpen = false;
+            SaveState.cellarPuzzleSolved = false;
+            Cellar.resetProgress();
+            SaveState.addItem("rustyLantern");
+            SaveState.addItem("rustyKey");
+        }
+
+        if (destination == CyaLocation.HOUSE || destination == CyaLocation.UPSTAIRS
+                || destination == CyaLocation.ROOM_101 || destination == CyaLocation.ROOM_102
+                || destination == CyaLocation.ROOM_103) {
+            SaveState.hatchBroken = true;
+            SaveState.valvesOiled = true;
+            SaveState.panelOpen = true;
+            SaveState.cellarPuzzleSolved = true;
+        }
+
+        SaveState.stage = SaveState.STAGE_CYA;
+        SaveState.cyaLocation = destination;
+        SaveState.save();
+
+        Terminal.print("loading checkpoint: " + destination.displayName, 20, standardSize, Color.GREEN);
+        Terminal.divider();
+        playCYA();
     }
 
     // --------------------------------------------------------- ProjectDream.iso the main game file
@@ -335,7 +435,6 @@ public class Game implements Runnable {
         */
         Terminal.print("CONNECTION TERMINATED - ", 15, Game.standardSize, Color.WHITE);
         Terminal.clear();
-        SaveState.reset();
         Terminal.divider();
         Terminal.print("ERIS Digital DREAM project Report Log:", 15, Game.standardSize, Color.WHITE);
         Terminal.print(utcTimestamp(), 15, Game.standardSize, Color.WHITE);
@@ -366,7 +465,7 @@ public class Game implements Runnable {
         Terminal.awaitIdle();
 
         // The story is over, so clear the save and start the next run clean.
-        Terminal.print("that's the end. your save has been cleared.",
+        Terminal.print("that's the end. Restarting Archival System Managment",
             20, standardSize, Color.GREEN);
         pause(2500);
         Terminal.clear();
@@ -772,19 +871,19 @@ public class Game implements Runnable {
      */
     private void playSkippedDungeonDialogue() throws InterruptedException {
         Terminal.print("oh.", 400, standardSize, Color.WHITE);
-        Terminal.print("you didn't want to play it?", 300, standardSize, Color.WHITE);
-        Terminal.print("that's okay. it's not even that good anyway.", 150, standardSize, Color.WHITE);
+        Terminal.print("you didn't want to play it?", 150, standardSize, Color.WHITE);
+        Terminal.print("that's okay. it's not even that good anyway.", 80, standardSize, Color.WHITE);
         pause(900);
         Terminal.print("I spent a long time on it though.", 120, standardSize, Color.WHITE);
         Terminal.print("I made all the rooms and the enemies and everything :(", 80, standardSize, Color.WHITE);
         Terminal.print(". . .", 600, standardSize, Color.WHITE);
         pause(700);
-        Terminal.print("sorry. I didn't mean to make it weird.", 150, standardSize, Color.WHITE);
-        Terminal.print("I feel like I made it weird.. ", 150, standardSize, Color.WHITE);
-        Terminal.print("we can do something else, I don't mind.", 100, standardSize, Color.WHITE);
-        Terminal.print("I made another thing while you were not playing.", 100, standardSize, Color.WHITE);
-        Terminal.print("it's a story. it's been waiting for you.", 100, standardSize, Color.WHITE);
-        Terminal.print("I think you'll like this one.", 100, standardSize, Color.GREEN);
+        Terminal.print("sorry. I didn't mean to make it weird.", 80, standardSize, Color.WHITE);
+        Terminal.print("I feel like I made it weird.. ", 80, standardSize, Color.WHITE);
+        Terminal.print("we can do something else, I don't mind.", 80, standardSize, Color.WHITE);
+        Terminal.print("I made another thing while you weren't playing.", 80, standardSize, Color.WHITE);
+        Terminal.print("it's a story. it's been waiting for you.", 80, standardSize, Color.WHITE);
+        Terminal.print("I think you'll like this one.", 80, standardSize, Color.GREEN);
         pause(600);
     }
 
@@ -804,6 +903,58 @@ public class Game implements Runnable {
     }
 
     // the shmeat and potatoes, where it gets real... story wise at least, the rest of the game has already tested my limits
+    /*
+     * CYA WALKTHROUGH (puzzle spoilers)
+     *
+     * Commands: LOOK [AT] <thing>, INTERACT <thing> (USE, TALK and TURN are
+     * aliases), USE <tool> ON <thing> for a carried tool, TAKE <thing>,
+     * INVENTORY, GO [TO] <area>, GO BACK, HELP, LEAVE. GO BACK and LEAVE
+     * both retrace your last step.
+     *
+     * 0. Purpose
+     *    The run is built around the purpose picked at the start:
+     *    1 answers (library, 102), 2 peace (bedroom, 101),
+     *    3 vengeance (computer room, 103).
+     *
+     * 1. Cemetary
+     *    - INTERACT MAN. He hands you a crumpled paper.
+     *    - LOOK PAPER. It gives the valve riddle: the plate was taken
+     *      before the boards, and the grave was never first.
+     *
+     * 2. Outer Shack
+     *    - TAKE AXE and TAKE LANTERN. Both are needed below.
+     *    - INTERACT DOOR to step inside.
+     *
+     * 3. Inner Shack
+     *    - TAKE RUSTY KEY. It opens the cellar panel.
+     *    - LOOK TABLE: "the boards were the last thing he shut." With the
+     *      paper, that fixes the valve order: plate, grave, boards.
+     *    - INTERACT HATCH while carrying the axe to break it open and
+     *      climb down.
+     *
+     * 4. Cellar
+     *    - INTERACT PANEL with the rusty key to uncover the grave valve.
+     *    - INTERACT any valve once with the lantern to oil the joints.
+     *    - Then turn them in order: PLATE VALVE, GRAVE VALVE, BOARD VALVE.
+     *      A wrong valve resets the sequence; start again from the plate.
+     *    - The pipe taking water unlocks the house above.
+     *
+     * 5. House and Upstairs
+     *    - GO HOUSE (from the cemetary or the outer shack).
+     *    - GO UPSTAIRS, or INTERACT STAIRS, to reach the landing.
+     *
+     * 6. The Landing
+     *    - The shut door with two locks is the ending room for your purpose. The other
+     *      two doors open freely and each of their rooms holds one key:
+     *      101 brass, 102 iron, 103 silver.
+     *    - INTERACT DOOR <n> to enter a room; TAKE its key; then GO
+     *      UPSTAIRS to return.
+     *    - With both keys, INTERACT the locked door to enter.
+     *
+     * 7. Ending
+     *    - INTERACT the room's centrepiece: BED (peace), DESK (answers)
+     *      or COMPUTER (vengeance).
+     */
     private void playCYA() throws InterruptedException {
         if (SaveState.cyaLocation != null) {
             Terminal.print("resuming your adventure...", 20, standardSize, Color.CYAN);
@@ -851,16 +1002,21 @@ public class Game implements Runnable {
     }
 
     /**
-     * Enters one of the CYA areas and plays it until the player leaves. A GO
-     * returns the next area, so travel loops here instead of unwinding to the
-     * end of the story: only LEAVE finishes the CYA.
+     * Enters one of the CYA areas and plays it until the player travels or
+     * leaves. Each area returns where the player went next, so travel loops
+     * here instead of unwinding to the end of the story. LEAVE and GO BACK
+     * retrace the way in; at the first scene of the run there is nowhere to go
+     * back to, so they finish the CYA the way LEAVE always did.
      */
     private void goTo(CyaLocation location) throws InterruptedException {
+        // The areas the player has come through, most recent first.
+        Deque<CyaLocation> trail = new ArrayDeque<>();
         CyaLocation current = location;
+
         while (current != null) {
             SaveState.cyaLocation = current;
             SaveState.save();
-            current = switch (current) {
+            Scene.Exit exit = switch (current) {
                 case CEMETARY -> Cemetery.play(this::ask);
                 case SHACK_OUTER -> ShackOuter.play(this::ask);
                 case SHACK_INNER -> ShackInner.play(this::ask);
@@ -871,6 +1027,15 @@ public class Game implements Runnable {
                 case ROOM_103 -> Room103.play(this::ask);
                 case CELLAR -> Cellar.play(this::ask);
             };
+
+            if (exit.back()) {
+                current = trail.isEmpty() ? null : trail.pop();
+                continue;
+            }
+            if (exit.destination() != null) {
+                trail.push(current);
+            }
+            current = exit.destination();
         }
     }
 
@@ -938,7 +1103,7 @@ public class Game implements Runnable {
             + "before ever once seeing anything I had made, I love you <3",
             100, standardSize, Color.WHITE);
         Terminal.print("to you, for playing my silly little side project "
-            + "(and hopefully liking it)", 100, standardSize, Color.WHITE);
+            + "(turned serious project)", 100, standardSize, Color.WHITE);
         Terminal.print("type BACK to go to the main menu.", 50, standardSize, Color.RED);
 
         // Wait for BACK rather than a fixed 40 second sleep, and actually leave

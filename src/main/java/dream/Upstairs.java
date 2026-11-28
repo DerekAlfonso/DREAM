@@ -36,7 +36,7 @@ final class Upstairs {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         return new Scene(CyaLocation.UPSTAIRS, "The Upstairs", Scene.text(Upstairs::description), OBJECTS)
             .play(input);
     }

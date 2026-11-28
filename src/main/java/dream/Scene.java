@@ -25,6 +25,16 @@ final class Scene {
     /** An interaction that finished the run. */
     private static final Outcome FINISHED = new Outcome(null, true);
 
+    /**
+     * How the scene ended: the place the player travelled to, or a request to
+     * step back to the area they came from. A null destination without a back
+     * request means the story ended.
+     */
+    record Exit(CyaLocation destination, boolean back) { }
+
+    /** LEAVE, BACK or GO BACK: step back to the area the player came from. */
+    private static final Exit BACK = new Exit(null, true);
+
     @FunctionalInterface
     interface Input {
         String read() throws InterruptedException;
@@ -61,12 +71,12 @@ final class Scene {
     }
 
     /**
-     * Plays the area until the player travels or leaves.
+     * Plays the area until the player travels, steps back or leaves.
      *
-     * @return the area chosen with GO, or null if the player stopped exploring
-     *         or the story ended
+     * @return where the player went next; a back request means the area they
+     *         came from, and a null destination means the story ended
      */
-    CyaLocation play(Input input) throws InterruptedException {
+    Exit play(Input input) throws InterruptedException {
         Terminal.print(title, 1, Game.standardSize + 4, Color.GRAY);
         Terminal.print(descriptionSpans(), 15, Game.standardSize, Color.WHITE);
         Terminal.print("type HELP for all commands, or LOOK to look around.",
@@ -81,7 +91,7 @@ final class Scene {
 
             if (verb.equals("leave") || Game.isBackCommand(line)) {
                 Terminal.blankLine();
-                return null;
+                return BACK;
             }
 
             switch (verb) {
@@ -97,13 +107,14 @@ final class Scene {
                     break;
                 case "interact":
                 case "use":
-                case "talk": {
-                    Outcome outcome = interact(target);
+                case "talk":
+                case "turn": {
+                    Outcome outcome = interact(target, verb);
                     if (outcome.finished()) {
-                        return null;
+                        return new Exit(null, false);
                     }
                     if (outcome.destination() != null) {
-                        return outcome.destination();
+                        return new Exit(outcome.destination(), false);
                     }
                     break;
                 }
@@ -111,9 +122,13 @@ final class Scene {
                     take(target);
                     break;
                 case "go": {
+                    if (isBackTarget(target)) {
+                        Terminal.blankLine();
+                        return BACK;
+                    }
                     CyaLocation destination = go(target);
                     if (destination != null) {
-                        return destination;
+                        return new Exit(destination, false);
                     }
                     break;
                 }
@@ -183,14 +198,46 @@ final class Scene {
      * how a door or a hatch is a way out rather than a GO target, and how the
      * ending room's main piece closes the run.
      */
-    private Outcome interact(String target) throws InterruptedException {
+    private Outcome interact(String target, String verb) throws InterruptedException {
         if (target.isEmpty()) {
-            printTargetUsage("interact", null);
+            printTargetUsage(verb, null);
             return STAY;
         }
+
         Interactable object = find(target);
+        // USE <tool> ON <thing>: the tool is only the means; the thing changes.
         if (object == null) {
-            printTargetUsage("interact", target);
+            String[] halves = splitOn(target);
+            if (halves != null) {
+                Interactable tool = findCarried(halves[0]);
+                if (tool != null) {
+                    Interactable thing = find(halves[1]);
+                    if (thing == null) {
+                        printTargetUsage(verb, halves[1]);
+                        return STAY;
+                    }
+                    if (!tool.canUseOn(thing.id)) {
+                        printNoEffect(tool, thing);
+                        return STAY;
+                    }
+                    object = thing;
+                }
+            }
+        }
+        // A carried tool on its own goes to the one thing here it is good for.
+        if (object == null) {
+            Interactable tool = findCarried(target);
+            if (tool != null) {
+                Interactable thing = toolTarget(tool);
+                if (thing == null) {
+                    printNothingToUse(tool);
+                    return STAY;
+                }
+                object = thing;
+            }
+        }
+        if (object == null) {
+            printTargetUsage(verb, target);
             return STAY;
         }
         if (object.endsScene()) {
@@ -205,6 +252,37 @@ final class Scene {
             Terminal.blankLine();
         }
         return new Outcome(destination, false);
+    }
+
+    /** The first thing in this area a carried tool can be applied to. */
+    private Interactable toolTarget(Interactable tool) {
+        for (Interactable object : objects) {
+            if (!object.isHidden() && tool.canUseOn(object.id)) {
+                return object;
+            }
+        }
+        return null;
+    }
+
+    /** Splits "tool on thing" into its two halves, or null when it is not that shape. */
+    private static String[] splitOn(String target) {
+        int at = target.toLowerCase().indexOf(" on ");
+        if (at < 0) {
+            return null;
+        }
+        String tool = target.substring(0, at).trim();
+        String thing = target.substring(at + 4).trim();
+        return tool.isEmpty() || thing.isEmpty() ? null : new String[] {tool, thing};
+    }
+
+    private static void printNothingToUse(Interactable tool) {
+        Terminal.print("you have no use for the " + tool.displayName + " here.",
+            15, Game.standardSize, Color.RED);
+    }
+
+    private static void printNoEffect(Interactable tool, Interactable thing) {
+        Terminal.print("the " + tool.displayName + " is no help with the " + thing.displayName + ".",
+            15, Game.standardSize, Color.RED);
     }
 
     private void take(String target) {
@@ -230,6 +308,15 @@ final class Scene {
         if (object.onTake != null) {
             object.onTake.run();
         }
+    }
+
+    /** GO BACK, and its return and home siblings, ask for the way in. */
+    private static boolean isBackTarget(String target) {
+        String name = target.trim();
+        if (name.toLowerCase().startsWith("to ")) {
+            name = name.substring(3).trim();
+        }
+        return Game.isBackCommand(name);
     }
 
     /** Validates a GO target against this area's links. Null means stay put. */
@@ -306,12 +393,15 @@ final class Scene {
         printCommand("interact <thing>", "talk to or use something");
         printCommand("talk <thing>", "alias for interact <thing>");
         printCommand("use <thing>", "alias for interact <thing>");
+        printCommand("use <tool> on <thing>", "apply a carried tool to something");
+        printCommand("turn <thing>", "alias for interact <thing>");
         printCommand("take <thing>", "pick something up");
         printCommand("inventory", "show what you are carrying");
         printCommand("go", "list where you can go");
         printCommand("go [to] <area>", "travel to a connected area");
+        printCommand("go back", "return to the previous area");
         printCommand("help", "show this command list");
-        printCommand("leave", "finish exploring");
+        printCommand("leave", "return to the previous area");
         printCommand("back | return | home", "aliases for leave");
         printCommand("quit | exit", "quit the game (with confirmation)");
         Terminal.divider();

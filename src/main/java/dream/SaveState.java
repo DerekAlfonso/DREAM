@@ -178,6 +178,7 @@ public final class SaveState {
         valvesOiled = false;
         panelOpen = false;
         cellarPuzzleSolved = false;
+        Cellar.resetProgress();
         takenObjects.clear();
         stage = null;
         save();

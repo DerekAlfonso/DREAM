@@ -24,12 +24,16 @@ final class ShackOuter {
             .look("A remarkably nice Axe, the wood feels premium under your fingers and the metal head leaves nothing to be desired")
             .interact("You test the edge with your thumb. It would break something, given a reason.")
             .take("You take the axe. The weight of it feels good in your hands.")
+            .useOn("hatch")
+            .onlyWhile(() -> !SaveState.hatchBroken)
             .build(),
         Interactable.builder("rustyLantern") // lowkey might scrap lol
             .names("rusty lantern", "lantern")
             .look("A rusty lantern, still holding a little oil in the base.")
             .interact("The lantern is cold. The oil inside is still liquid.")
             .take("You take the rusty lantern. It is heavier than it looks.")
+            .useOn("plateValve")
+            .onlyWhile(() -> !SaveState.valvesOiled)
             .build()
     );
 
@@ -39,7 +43,7 @@ final class ShackOuter {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         return new Scene(CyaLocation.SHACK_OUTER, "The Outer Decrepit Shack",
             ShackOuter::describeArea, OBJECTS).play(input);
     }

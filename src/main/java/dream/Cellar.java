@@ -69,9 +69,17 @@ final class Cellar {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         return new Scene(CyaLocation.CELLAR, "The Cellar Beneath the Shack",
             Cellar::describeArea, OBJECTS).play(input);
+    }
+
+    /**
+     * Clears valve progress that was never saved, so a new run starts with
+     * no valves open even when the same process just played another sequence.
+     */
+    static void resetProgress() {
+        opened = 0;
     }
 
     /** Built fresh each time, so the panel reads as open once the key has been in it. */
@@ -133,8 +141,8 @@ final class Cellar {
         if (!ORDER.get(opened).equals(id)) {
             opened = 0;
             return "You haul the valve round. Water slams shut somewhere in the pipe, the other valves "
-                + "shudder on their bolts, and everything settles back the way it was. Whatever order this "
-                + "is, it is not the right one, and it is not written on these walls.";
+                + "shudder on their bolts, and everything settles back the way it was. The sequence has "
+                + "restarted. Begin again at the plate valve.";
         }
 
         opened++;

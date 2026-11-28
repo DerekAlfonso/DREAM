@@ -50,7 +50,7 @@ final class Cemetery {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         return new Scene(CyaLocation.CEMETARY, "The Cemetary", Cemetery::describeArea, OBJECTS)
             .play(input);
     }

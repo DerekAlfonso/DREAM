@@ -38,7 +38,7 @@ final class House {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         String description = "The unlocked door opens into a house far too large to have fit behind the "
             + "shack. A long hall stretches ahead, lined with doors that are all slightly open. A portrait "
             + "hangs over a coat rack by the door, a candlestick burns on a side table, and a staircase "

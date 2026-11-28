@@ -44,7 +44,10 @@ final class ShackInner {
         Interactable.builder("rustyKey")
             .names("rusty key", "key")
             .look("A small rusty key, worn smooth at the bow.")
-            .take("You take the rusty key. It is cold, and it fits nothing here.")
+            .take("You take the rusty key. It is cold in your hand, and its teeth are small, the kind "
+                + "that would fit the brass padlock on the cellar panel below.")
+            .useOn("ironPanel")
+            .onlyWhile(() -> !SaveState.panelOpen)
             .build()
     );
 
@@ -54,7 +57,7 @@ final class ShackInner {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         return new Scene(CyaLocation.SHACK_INNER, "The Inner Decrepit Shack",
             ShackInner::describeArea, OBJECTS).play(input);
     }
@@ -63,10 +66,13 @@ final class ShackInner {
     private static List<TextSpan> describeArea() {
         String description = "Inside, the shack is one long room that smells of wet wood and old smoke. "
             + "A table, a chair and a cold stove wait in the dark.";
+        if (!SaveState.hasItem("rustyKey")) {
+            description += " A small rusty key hangs from a nail driven into the wall above the stove.";
+        }
         description += SaveState.hatchBroken
             ? " The hatch in the floorboards hangs open, and a ladder drops through it into the dark."
             : " A hatch is set into the floorboards beside the stove, nailed shut.";
-        return TextSpan.highlighting(description, "hatch", Scene.NAME);
+        return TextSpan.highlighting(description, Scene.NAME, "hatch", "key");
     }
 
     private static String describeHatch() {

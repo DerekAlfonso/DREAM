@@ -37,7 +37,7 @@ final class Room103 {
         return OBJECTS;
     }
 
-    static CyaLocation play(Scene.Input input) throws InterruptedException {
+    static Scene.Exit play(Scene.Input input) throws InterruptedException {
         Supplier<String> description = () -> {
             String base = "The computer room is at the end of the landing, and the air in it is "
                 + "colder. A single terminal sits on a desk against the wall, its screen full of "

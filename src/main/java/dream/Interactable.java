@@ -49,6 +49,12 @@ final class Interactable {
     /** The object is out of the scene while this holds; null means it never is. */
     private final BooleanSupplier hiddenWhen;
 
+    /** Ids of the things this object can be used on as a tool; empty otherwise. */
+    private final List<String> useTargets;
+
+    /** Use of this tool works only while this holds; null means it always does. */
+    private final BooleanSupplier useWhile;
+
     /** The closing scene played in place of the usual line when the run ends here. */
     private final Finale finale;
 
@@ -68,6 +74,8 @@ final class Interactable {
         this.onTake = builder.onTake;
         this.travel = builder.travel;
         this.hiddenWhen = builder.hiddenWhen;
+        this.useTargets = List.copyOf(builder.useTargets);
+        this.useWhile = builder.useWhile;
         this.finale = builder.finale;
         this.endsScene = builder.endsScene;
     }
@@ -130,6 +138,15 @@ final class Interactable {
         return travel == null ? null : travel.get();
     }
 
+    /**
+     * True while this object is a tool that can be applied to the thing with
+     * the given id: it names that thing, and it has not already been spent.
+     */
+    boolean canUseOn(String targetId) {
+        return useTargets.contains(targetId)
+            && (useWhile == null || useWhile.getAsBoolean());
+    }
+
     boolean matches(String query) {
         if (id.equalsIgnoreCase(query) || displayName.equalsIgnoreCase(query)) {
             return true;
@@ -160,6 +177,8 @@ final class Interactable {
         private Runnable onTake;
         private Supplier<CyaLocation> travel;
         private BooleanSupplier hiddenWhen;
+        private final List<String> useTargets = new ArrayList<>();
+        private BooleanSupplier useWhile;
         private Finale finale;
         private BooleanSupplier endsScene;
 
@@ -236,6 +255,21 @@ final class Interactable {
          */
         Builder travelTo(Supplier<CyaLocation> destination) {
             travel = destination;
+            return this;
+        }
+
+        /**
+         * Makes this object a tool: a bare USE applies it to the first of these
+         * ids that is in the area, and USE <tool> ON <thing> accepts them too.
+         */
+        Builder useOn(String... targetIds) {
+            useTargets.addAll(Arrays.asList(targetIds));
+            return this;
+        }
+
+        /** Bounds when the tool can be used: USE only works while this holds. */
+        Builder onlyWhile(BooleanSupplier condition) {
+            useWhile = condition;
             return this;
         }
 

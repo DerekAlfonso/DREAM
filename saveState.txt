@@ -1,11 +1,15 @@
 #D.R.E.A.M save state
-#Mon Nov 23 06:13:02 CST 2026
-CYALocation=
-cpuName=
-favoriteColor=
-purpose=
+#Sat Nov 28 00:44:49 CST 2026
+CYALocation=room101
+cellarPuzzleSolved=true
+cpuName=ERIS
+favoriteColor=green
+hatchBroken=true
+panelOpen=true
+purpose=peace
 saveVersion=2
 spokenToMysteriousMan=false
-stage=
+stage=cya
 takenObjects=
-username=
+username=tester
+valvesOiled=true
