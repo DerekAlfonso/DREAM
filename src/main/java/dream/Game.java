@@ -456,7 +456,11 @@ public class Game implements Runnable {
         Terminal.print("-Ted Soul", 15, Game.standardSize, NamedColors.display(SaveState.favoriteColor));
         } else if ("answers".equals(SaveState.purpose))
         {
-            // ending log 2
+        Terminal.print("Yeah I'm gonna be honest I don't really know how to describe what this one did. It got all philisophical with me and then " + 
+            "what I can only imagine is the computer version of suicide. Anyway, if the higher ups want this project back they're gonna have to remake " +
+            "it cause I just watched it purposefully set off a guard rail to delete itself. I really wish this company would start making normal software. " +
+            "Anyway, hope you're having a good day Ellen (whenever you get to reading this) cause my day just got really weird.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("-Ted Soul", 15, Game.standardSize, NamedColors.display(SaveState.favoriteColor));
         } else if ("vengeance".equals(SaveState.purpose))
         {
             // ending log 3
