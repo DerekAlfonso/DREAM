@@ -5,7 +5,7 @@
 A retro CRT terminal narrative game. Originally written for CodeHS, now a
 standalone desktop application.
 
-Developed and written by (Aesfo).
+Developed and written by Aesfo.
 
 ## Running it
 
