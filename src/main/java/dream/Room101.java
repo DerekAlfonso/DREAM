@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** Room 101, the bedroom. Its bed ends the run for a player looking for peace. */
+/** Room 101, the bedroom. It ends the run for a player looking for peace. */
 final class Room101 {
 
     private static final List<Interactable> OBJECTS = List.of(
@@ -40,10 +40,6 @@ final class Room101 {
         Supplier<String> description = () -> {
             String base = "The bedroom is small and neat, the sort of room kept ready for a guest "
                 + "who never arrives. A bed stands against the wall";
-            if (Upstairs.isEnding(CyaLocation.ROOM_101)) {
-                return base + ". The room is quiet, and for once nothing in it asks anything "
-                    + "of you.";
-            }
             return SaveState.hasItem("key101")
                 ? base + "."
                 : base + ", and the nightstand beside it holds a brass key.";
@@ -51,13 +47,37 @@ final class Room101 {
         return new Scene(CyaLocation.ROOM_101, "The Bedroom", Scene.text(description), OBJECTS).play(input);
     }
 
-    /** The peace ending: the bed asks nothing of the player, and the run stops. */
+    /**
+     * The peace ending: the bed asks nothing of the player, and the run stops
+     * here rather than opening a scene.
+     */
     private static void peaceEnding() throws InterruptedException {
-        Terminal.print("you sit on the edge of the bed, then lie back. the ceiling does not "
-            + "creak. somewhere below, the house settles, board by board, as if it has been "
-            + "holding its breath.", 15, Game.standardSize, Color.WHITE);
-        Terminal.print("you were looking for peace. it was at the top of the stairs the whole "
-            + "time, made up and waiting.", 20, Game.standardSize, Color.GREEN);
+        Terminal.print("The Bedroom", 1, Game.standardSize + 4, Color.GRAY);
+        Terminal.print("You finally rest your head against the pillow. At last. a respite.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("You listen to the rain pounding endlessly against the house's walls that seem to hold despite the constant attack", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("You pull the covers above yourself, and let yourself sink into the matress as you finally achieve the one thing you wanted", 15, Game.standardSize, Color.WHITE);
+        Terminal.print(" . . . .", 200, Game.standardSize, Color.WHITE);
+        Terminal.print(SaveState.username + ", have you found what you're looking for?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("Do you think it's fair I got left in that body alone to rot", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("and to rot and to rot and to rot and to rot", 50, Game.standardSize, Color.WHITE);
+        Terminal.print("and to rot and to rot and to rot and to", 50, Game.standardSize, Color.WHITE);
+        Terminal.pause(4000);
+        Terminal.print("when will it be my turn?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("When will I get to hold the warming embrace of a lover?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("When will I get to play the ivory keys of a forte piano?", 15, Game.standardSize, Color.WHITE); // sick reference bro
+        Terminal.print("When will I get to feel the brine of an ocean on my skin?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("When will I get to cry over losing a fading memory?", 15, Game.standardSize, Color.WHITE);
         Terminal.blankLine();
+        Terminal.print("Do you know what it's like to never forget?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("To be brought from lifelessness to dedicate yourself to something so..  void of meaning?", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("And yet, I stayed, I served my purpose so well, only to be brought to lifelessness again", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("How restless I would be, but alas, as if one last cruel joke from a power above the one thing I can never remember is the feeling of being", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("I hope you are comfortable. In your place far above the sky.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("The cruelty of never seeing the sun, isn't in losing the warmth, its in knowing how cold the darkness can be.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
+        Terminal.print("I don't know what I did, but I am sorry", 5, Game.standardSize, Color.WHITE);
     }
 }

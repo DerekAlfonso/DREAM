@@ -314,7 +314,7 @@ final class Scene {
         printCommand("leave", "finish exploring");
         printCommand("back | return | home", "aliases for leave");
         printCommand("quit | exit", "quit the game (with confirmation)");
-        Terminal.print("------------------", 15, Game.standardSize, Color.GREEN);
+        Terminal.divider();
     }
 
     /**

@@ -7,6 +7,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -36,6 +39,13 @@ public class Game implements Runnable {
     /** The size the rest of the game uses for body text. */
     static int getStandardSize() {
         return standardSize;
+    }
+
+    /** The current UTC time, formatted for the report log header. */
+    private static String utcTimestamp() {
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'")
+            .withZone(ZoneOffset.UTC)
+            .format(Instant.now());
     }
 
     @Override
@@ -276,7 +286,7 @@ public class Game implements Runnable {
                 SaveState.save();
             }
             Terminal.print("welcome back, " + SaveState.username + " :3", 20, standardSize, Color.GREEN);
-            Terminal.print("lets continue where we left off, with games!", 20, standardSize, Color.WHITE);
+            Terminal.print("lets continue where we left off, shall we?", 20, standardSize, Color.WHITE);
         }
 
         if (SaveState.STAGE_RPS.equals(SaveState.stage)) {
@@ -323,9 +333,28 @@ public class Game implements Runnable {
         /*
         *  ending scene
         */
+        Terminal.print("CONNECTION TERMINATED - ", 15, Game.standardSize, Color.WHITE);
+        Terminal.clear();
+        SaveState.reset();
+        Terminal.divider();
+        Terminal.print("ERIS Digital DREAM project Report Log:", 15, Game.standardSize, Color.WHITE);
+        Terminal.print(utcTimestamp(), 15, Game.standardSize, Color.WHITE);
+        Terminal.blankLine();
+        Terminal.print("System info dump - ", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("SystemName: " + SaveState.cpuName, 15, Game.standardSize, Color.WHITE);
+        Terminal.print("SystemVersion: 2.1956.85", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("UserName: " + SaveState.username, 15, Game.standardSize, Color.WHITE);
+        Terminal.print("UserFavColor: " + SaveState.favoriteColor, 15, Game.standardSize, Color.WHITE);
+        Terminal.blankLine();
+        Terminal.print("Log Cont.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("Archival Restoration Notes:", 15, Game.standardSize, Color.WHITE);
         if ("peace".equals(SaveState.purpose))
         {
-            // ending log 1
+        Terminal.print("I don't know why higher ups care about this project at all, it seems unstable and ineffective. " + 
+            "It got really weird with me towards the end, I'm sure Ellen will have a field day telling me how cool this " + 
+            "project is and inundating me with facts for a project that's probably older than both of us combined. Whatever, " +
+            "I can't seem to find a date for when this was made, but it seems pretty old. Ask Ellen if she knows anything, she usually does.", 15, Game.standardSize, Color.WHITE);
+        Terminal.print("-Ted Soul", 15, Game.standardSize, NamedColors.display(SaveState.favoriteColor));
         } else if ("answers".equals(SaveState.purpose))
         {
             // ending log 2
@@ -337,7 +366,6 @@ public class Game implements Runnable {
         Terminal.awaitIdle();
 
         // The story is over, so clear the save and start the next run clean.
-        SaveState.reset();
         Terminal.print("that's the end. your save has been cleared.",
             20, standardSize, Color.GREEN);
         pause(2500);
@@ -598,7 +626,7 @@ public class Game implements Runnable {
                     return word;
                 }
                 if (attempt < WORD_ATTEMPTS) {
-                    Thread.sleep(WORD_RETRY_DELAY_MS);
+                    Terminal.pause(WORD_RETRY_DELAY_MS);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -785,7 +813,7 @@ public class Game implements Runnable {
 
         Terminal.blankLine();
         Terminal.print("Loading CYA . . .", 1, standardSize, Color.WHITE);
-        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
+        Terminal.divider();
         loadingPause(5000);
         Terminal.print("welcome to... ", 1, standardSize - 4, Color.GRAY);
         Terminal.print("the adventure of " + SaveState.username + ": " + SaveState.cpuName +"'s Haunted Mansion", 50, standardSize + 3, NamedColors.display(SaveState.favoriteColor));
@@ -804,7 +832,7 @@ public class Game implements Runnable {
 
         Terminal.print("you were looking for... " + SaveState.purpose, 15, standardSize, Color.WHITE);
         Terminal.print("as you wade through the forest you happen upon an old cemetary", 15, standardSize, Color.WHITE);
-        Terminal.print("-----------------", 1, standardSize, Color.WHITE);
+        Terminal.divider();
         goTo(CyaLocation.CEMETARY);
     }
 
@@ -1061,7 +1089,7 @@ public class Game implements Runnable {
     }
 
     public void pause(long millis) throws InterruptedException {
-        Thread.sleep(millis);
+        Terminal.pause(millis);
     }
 
     /** A faked load wait. fastBoot skips it, but the screen still updates. */

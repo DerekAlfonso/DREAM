@@ -127,20 +127,20 @@ final class Doom {
     private static void intro() throws InterruptedException {
         Terminal.blankLine();
         Terminal.print("DOOM.EXE", 30, 20, Color.RED);
-        Thread.sleep(700);
+        Terminal.pause(700);
         Terminal.print("loading DOOM.WAD...", 20, 15, Color.WHITE);
-        Thread.sleep(1200);
+        Terminal.pause(1200);
         Terminal.print("DOOM.WAD not found.", 20, 15, Color.RED);
-        Thread.sleep(900);
+        Terminal.pause(900);
         Terminal.print("improvising.", 20, 15, Color.WHITE);
-        Thread.sleep(1100);
+        Terminal.pause(1100);
         Terminal.print("note: movement is turn based. we are aware of this.",
             15, 15, Color.WHITE);
-        Thread.sleep(800);
+        Terminal.pause(800);
         Terminal.print("W forward, S back, A turn left, D turn right, F fire.",
             15, 15, Color.WHITE);
         Terminal.print("type BACK to return to the main menu.", 15, 15, Color.RED);
-        Thread.sleep(600);
+        Terminal.pause(600);
     }
 
     // ------------------------------------------------------------------- turn

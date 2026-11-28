@@ -11,7 +11,7 @@ final class Cemetery {
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("graves")
             .names("headstones", "graves", "gravestones", "stones")
-            .look("Headstones lean in a crooked row, the only legible name being a \"Jamison T. Lyle\". "
+            .look("Headstones lean in a crooked row, the only legible name being a \"Jamison T. Lyle\". His tomb has a stream of rain water flowing off of it like a river of darkness."
                 + "Someone has kept them clear of the grass.")
             .interact("You rest a hand on the nearest headstone. It is warm, as if something had been "
                 + "leaning against it.")
