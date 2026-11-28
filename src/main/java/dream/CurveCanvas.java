@@ -226,6 +226,14 @@ public class CurveCanvas extends JPanel {
         }
     }
 
+    /** Removes one line from a layer, used when a viewport frame is replaced. */
+    public void removeTextFromLayer(String layerName, TextData text) {
+        Layer layer = layerMap.get(layerName);
+        if (layer != null && layer.textItems.remove(text)) {
+            repaint();
+        }
+    }
+
     /** Shifts every line of text vertically. Used by the scroll wheel. */
     public void scrollAllText(int scrollAmount) {
         for (Layer layer : renderOrder) {

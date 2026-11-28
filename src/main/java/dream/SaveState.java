@@ -49,11 +49,20 @@ public final class SaveState {
      */
     public static boolean cellarPuzzleSolved = false;
 
+    /** Valves turned in the right order so far, before the cellar puzzle is solved. */
+    public static int valvesOpened = 0;
+
+    /** True once the clue scratched into the shack's table has been read. */
+    public static boolean readTableClue = false;
+
     /**
      * The inventory: ids of the objects the player has taken, in the order
      * they were picked up. Saved with the rest of the run.
      */
     public static final Set<String> takenObjects = new LinkedHashSet<>();
+
+    /** Items the player has finished with and left behind; they stay gone. */
+    public static final Set<String> droppedObjects = new LinkedHashSet<>();
 
     /** The last CYA place reached, or null if the CYA has not reached one yet. */
     public static CyaLocation cyaLocation = null;
@@ -104,11 +113,22 @@ public final class SaveState {
         panelOpen = Boolean.parseBoolean(props.getProperty("panelOpen", "false"));
         cellarPuzzleSolved = Boolean.parseBoolean(
             props.getProperty("cellarPuzzleSolved", "false"));
+        valvesOpened = Math.max(0, Math.min(2,
+            readInt(props, "valvesOpened", 0)));
+        readTableClue = Boolean.parseBoolean(
+            props.getProperty("readTableClue", "false"));
         takenObjects.clear();
         String taken = props.getProperty("takenObjects", "");
         for (String id : taken.split(",")) {
             if (!id.trim().isEmpty()) {
                 takenObjects.add(id.trim());
+            }
+        }
+        droppedObjects.clear();
+        String dropped = props.getProperty("droppedObjects", "");
+        for (String id : dropped.split(",")) {
+            if (!id.trim().isEmpty()) {
+                droppedObjects.add(id.trim());
             }
         }
 
@@ -136,7 +156,10 @@ public final class SaveState {
         props.setProperty("valvesOiled", String.valueOf(valvesOiled));
         props.setProperty("panelOpen", String.valueOf(panelOpen));
         props.setProperty("cellarPuzzleSolved", String.valueOf(cellarPuzzleSolved));
+        props.setProperty("valvesOpened", String.valueOf(valvesOpened));
+        props.setProperty("readTableClue", String.valueOf(readTableClue));
         props.setProperty("takenObjects", String.join(",", takenObjects));
+        props.setProperty("droppedObjects", String.join(",", droppedObjects));
         props.setProperty("stage", nullToEmpty(stage));
 
         try {
@@ -161,10 +184,24 @@ public final class SaveState {
         return takenObjects.contains(id);
     }
 
+    /** True once the item is in the inventory or has been left behind. */
+    public static boolean isGone(String id) {
+        return takenObjects.contains(id) || droppedObjects.contains(id);
+    }
+
     /** Adds an object id to this save's inventory and writes it immediately. */
     public static void addItem(String id) {
         takenObjects.add(id);
+        droppedObjects.remove(id);
         save();
+    }
+
+    /** Moves a carried object out of the inventory and leaves it behind for good. */
+    public static void dropItem(String id) {
+        if (takenObjects.remove(id)) {
+            droppedObjects.add(id);
+            save();
+        }
     }
 
     public static void reset() {
@@ -178,8 +215,11 @@ public final class SaveState {
         valvesOiled = false;
         panelOpen = false;
         cellarPuzzleSolved = false;
+        valvesOpened = 0;
+        readTableClue = false;
         Cellar.resetProgress();
         takenObjects.clear();
+        droppedObjects.clear();
         stage = null;
         save();
     }

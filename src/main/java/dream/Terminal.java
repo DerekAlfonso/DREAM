@@ -73,6 +73,8 @@ public final class Terminal {
     private static Font baseFont = new Font(Font.MONOSPACED, Font.PLAIN, 15);
 
     private static final List<TextData> activeLines = new ArrayList<>();
+    /** Lines belonging to the current viewport frame, replaced on the next frame. */
+    private static final List<TextData> frameLines = new ArrayList<>();
     private static final Queue<MessageRequest> messageQueue = new LinkedList<>();
     private static boolean isTyping = false;
 
@@ -96,6 +98,7 @@ public final class Terminal {
     private static final List<CountDownLatch> idleWaiters = new ArrayList<>();
 
     private static boolean awaitingInput = false;
+    private static boolean allowBlankInput = false;
     private static String currentInput = "";
     private static String promptSymbol = "> ";
     private static TextData inputLine = null;
@@ -373,36 +376,80 @@ public final class Terminal {
      * the middle of a sentence.
      */
     public static void printFrame(String[] rows, int fontSize, Color color) {
+        printFrame(rows, null, fontSize, color);
+    }
+
+    /**
+     * Draws a viewport block with a two-line status strip below it. A frame
+     * already on screen is removed and replaced, rather than pushed into the
+     * scrollback, so doom.exe reads as one fixed viewport.
+     */
+    public static void printFrame(String[] rows, String status, int fontSize, Color color) {
         if (canvas == null || rows.length == 0) {
             return;
         }
-        final String[] frame = rows.clone();
+        final List<String> frame = frameRows(rows, status);
         awaitIdle();
 
         SwingUtilities.invokeLater(() -> {
             // Just over one glyph height, so rows touch without overlapping.
             int rowGap = Math.max(1, (int) Math.round(fontSize * 1.15 * uiScale()));
+            int push = (frame.size() - 1) * rowGap + scaled(BASE_LINE_HEIGHT);
 
-            // Clear enough room for the whole block plus a normal message gap.
-            int push = (frame.length - 1) * rowGap + scaled(BASE_LINE_HEIGHT);
-            for (TextData line : activeLines) {
-                line.setY(line.y - push);
+            if (frameLines.isEmpty()) {
+                // First frame: make room above it for the intro and earlier log.
+                for (TextData line : activeLines) {
+                    line.setY(line.y - push);
+                }
+            } else {
+                for (TextData old : frameLines) {
+                    activeLines.remove(old);
+                    canvas.removeTextFromLayer(CurveCanvas.TEXT_LAYER, old);
+                }
+                frameLines.clear();
             }
 
             Font font = baseFont.deriveFont(Font.PLAIN, (float) scaledFontSize(fontSize));
             int x = startX();
             int bottom = homeY();
 
-            for (int i = 0; i < frame.length; i++) {
-                int y = bottom - (frame.length - 1 - i) * rowGap;
-                TextData data = new TextData(frame[i], x, y, fontSize, color, font);
+            for (int i = 0; i < frame.size(); i++) {
+                int y = bottom - (frame.size() - 1 - i) * rowGap;
+                TextData data = new TextData(frame.get(i), x, y, fontSize, color, font);
                 activeLines.add(data);
                 canvas.addTextToLayer(CurveCanvas.TEXT_LAYER, data);
+                frameLines.add(data);
             }
 
             trimHistory();
             canvas.repaint();
         });
+    }
+
+    /** Appends the fixed two-line status strip used by the viewport frame. */
+    private static List<String> frameRows(String[] rows, String status) {
+        List<String> frame = new ArrayList<>(Arrays.asList(rows));
+        int width = rows[0].length();
+        String text = status == null ? "" : status.replace('\n', ' ').trim();
+        String firstLine = text.length() > width ? text.substring(0, width) : text;
+        String rest = text.length() > width ? text.substring(width).trim() : "";
+        String secondLine = rest.length() > width
+            ? rest.substring(0, Math.max(0, width - 3)) + "..."
+            : rest;
+        frame.add(padFrameLine(firstLine, width));
+        frame.add(padFrameLine(secondLine, width));
+        return frame;
+    }
+
+    private static String padFrameLine(String text, int width) {
+        if (text.length() >= width) {
+            return text.substring(0, width);
+        }
+        StringBuilder padded = new StringBuilder(text);
+        while (padded.length() < width) {
+            padded.append(' ');
+        }
+        return padded.toString();
     }
 
     /**
@@ -844,6 +891,18 @@ public final class Terminal {
      * @return exactly what they typed, never null
      */
     public static String prompt() {
+        return prompt(false);
+    }
+
+    /**
+     * Like {@link #prompt()}, but an empty Enter submits an empty answer. Used
+     * for "press ENTER" screens and for repeating a combat action.
+     */
+    public static String promptAllowBlank() {
+        return prompt(true);
+    }
+
+    private static String prompt(boolean allowBlank) {
         if (SwingUtilities.isEventDispatchThread()) {
             throw new IllegalStateException("prompt() would deadlock the event thread");
         }
@@ -851,7 +910,7 @@ public final class Terminal {
         awaitIdle();
 
         BlockingQueue<String> result = new ArrayBlockingQueue<>(1);
-        SwingUtilities.invokeLater(() -> beginInput(result));
+        SwingUtilities.invokeLater(() -> beginInput(result, allowBlank));
 
         try {
             return result.take();
@@ -861,8 +920,9 @@ public final class Terminal {
         }
     }
 
-    private static void beginInput(BlockingQueue<String> result) {
+    private static void beginInput(BlockingQueue<String> result, boolean allowBlank) {
         awaitingInput = true;
+        allowBlankInput = allowBlank;
         currentInput = "";
         inputCursor = 0;
         historyIndex = inputHistory.size();
@@ -948,10 +1008,11 @@ public final class Terminal {
             skipTyping();
             return;
         }
-        if (currentInput.trim().isEmpty()) {
+        if (currentInput.trim().isEmpty() && !allowBlankInput) {
             return;
         }
         awaitingInput = false;
+        allowBlankInput = false;
         stopCaretBlink();
 
         String submitted = currentInput;
@@ -962,8 +1023,9 @@ public final class Terminal {
         currentInput = "";
         inputCursor = 0;
 
-        if (inputHistory.isEmpty()
-            || !inputHistory.get(inputHistory.size() - 1).equals(submitted)) {
+        if (!submitted.trim().isEmpty()
+                && (inputHistory.isEmpty()
+                || !inputHistory.get(inputHistory.size() - 1).equals(submitted))) {
             inputHistory.add(submitted);
             if (inputHistory.size() > MAX_HISTORY) {
                 inputHistory.remove(0);
@@ -1220,6 +1282,7 @@ public final class Terminal {
             stopGlitches();
             messageQueue.clear();
             activeLines.clear();
+            frameLines.clear();
             canvas.pruneText(0);
             scrollOffset = 0;
             canvas.repaint();

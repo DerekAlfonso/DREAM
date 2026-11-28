@@ -3,6 +3,7 @@ package dream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -55,6 +56,9 @@ final class Interactable {
     /** Use of this tool works only while this holds; null means it always does. */
     private final BooleanSupplier useWhile;
 
+    /** True once the player may leave this object behind; null means never. */
+    private final BooleanSupplier dropWhen;
+
     /** The closing scene played in place of the usual line when the run ends here. */
     private final Finale finale;
 
@@ -76,6 +80,7 @@ final class Interactable {
         this.hiddenWhen = builder.hiddenWhen;
         this.useTargets = List.copyOf(builder.useTargets);
         this.useWhile = builder.useWhile;
+        this.dropWhen = builder.dropWhen;
         this.finale = builder.finale;
         this.endsScene = builder.endsScene;
     }
@@ -159,6 +164,40 @@ final class Interactable {
         return false;
     }
 
+    /**
+     * True when one of this object's names starts with a typed word, so
+     * "rusty" finds "rusty lantern" without the whole name being typed.
+     */
+    boolean matchesPartially(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return false;
+        }
+        String needle = query.trim().toLowerCase(Locale.ROOT);
+        if (matches(needle)) {
+            return true;
+        }
+        return startsWord(id, needle)
+            || startsWord(displayName, needle)
+            || names.stream().anyMatch(name -> startsWord(name, needle));
+    }
+
+    private static boolean startsWord(String phrase, String needle) {
+        if (phrase == null) {
+            return false;
+        }
+        for (String word : phrase.toLowerCase(Locale.ROOT).split("\\s+")) {
+            if (word.startsWith(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when the player has finished with this object and may leave it. */
+    boolean canDrop() {
+        return dropWhen != null && dropWhen.getAsBoolean();
+    }
+
     static Builder builder(String id) {
         return new Builder(id);
     }
@@ -179,6 +218,7 @@ final class Interactable {
         private BooleanSupplier hiddenWhen;
         private final List<String> useTargets = new ArrayList<>();
         private BooleanSupplier useWhile;
+        private BooleanSupplier dropWhen;
         private Finale finale;
         private BooleanSupplier endsScene;
 
@@ -270,6 +310,12 @@ final class Interactable {
         /** Bounds when the tool can be used: USE only works while this holds. */
         Builder onlyWhile(BooleanSupplier condition) {
             useWhile = condition;
+            return this;
+        }
+
+        /** Allows the player to leave this object behind once the condition holds. */
+        Builder droppableWhen(BooleanSupplier condition) {
+            dropWhen = condition;
             return this;
         }
 

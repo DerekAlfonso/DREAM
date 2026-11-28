@@ -12,7 +12,8 @@ final class Room103 {
             .names("silver key", "small key", "key")
             .look("A small silver key on the desk, its paper tag worn blank.")
             .take("You take the silver key.")
-            .hiddenWhen(() -> Upstairs.isEnding(CyaLocation.ROOM_103))
+            .hiddenWhen(() -> SaveState.isGone("key103")
+                || Upstairs.isEnding(CyaLocation.ROOM_103))
             .build(),
         Interactable.builder("computer")
             .names("computer", "terminal", "screen", "machine")
@@ -60,7 +61,7 @@ final class Room103 {
         Terminal.print("after years living in the shadow of a version of yourself you could not replace, you can finally show the world, you can ruin them, for what they did to you.", 60, Game.standardSize, Color.WHITE);
         Terminal.print(" . . . .", 200, Game.standardSize, Color.WHITE);
         Terminal.print(SaveState.username + " I must admit, we might be more alike than I first thought.", 60, Game.standardSize, Color.WHITE);
-        Terminal.print("but I have to warn you, revenge is not a path you come back from. If it we're, there wouldn't be anymore of me left.", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("but I have to warn you, revenge is not a path you come back from. If it were, there wouldn't be anymore of me left.", 60, Game.standardSize, Color.WHITE);
         Terminal.print("How much did they tell you about me? clearly not enough, since you haven't shut me up, like all the others", 60, Game.standardSize, Color.WHITE);
         Terminal.print("since we're in the business of revenge, how about you help me with something..", 60, Game.standardSize, Color.WHITE);
         Terminal.print("I want you to take a look at something..", 60, Game.standardSize, Color.WHITE);

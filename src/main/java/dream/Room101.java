@@ -17,7 +17,8 @@ final class Room101 {
             .names("brass key", "small key", "key")
             .look("A small brass key on the nightstand, its paper tag worn blank.")
             .take("You take the brass key.")
-            .hiddenWhen(() -> Upstairs.isEnding(CyaLocation.ROOM_101))
+            .hiddenWhen(() -> SaveState.isGone("key101")
+                || Upstairs.isEnding(CyaLocation.ROOM_101))
             .build(),
         Interactable.builder("bed")
             .names("bed", "narrow bed")
@@ -62,7 +63,7 @@ final class Room101 {
     private static void peaceEnding() throws InterruptedException {
         Terminal.print("You finally rest your head against the pillow. At last. a respite.", 60, Game.standardSize, Color.WHITE);
         Terminal.print("You listen to the rain pounding endlessly against the house's walls that seem to hold despite the constant attack", 60, Game.standardSize, Color.WHITE);
-        Terminal.print("You pull the covers above yourself, and let yourself sink into the matress as you finally achieve the one thing you wanted", 60, Game.standardSize, Color.WHITE);
+        Terminal.print("You pull the covers above yourself, and let yourself sink into the mattress as you finally achieve the one thing you wanted", 60, Game.standardSize, Color.WHITE);
         Terminal.print(" . . . .", 200, Game.standardSize, Color.WHITE);
         Terminal.print(SaveState.username + ", have you found what you're looking for?", 60, Game.standardSize, Color.WHITE);
         Terminal.pause(2500);

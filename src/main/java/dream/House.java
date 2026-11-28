@@ -15,7 +15,7 @@ final class House {
         Interactable.builder("candlestick")
             .names("candlestick", "candle")
             .look("A brass candlestick, its candle burned down to a thumb.")
-            .take("You take the candlestick. The flame leans toward the stairs.")
+            .refuseTake("The candlestick is fixed to the side table. The flame leans toward the stairs.")
             .build(),
         Interactable.builder("stairs")
             .names("stairs", "staircase")

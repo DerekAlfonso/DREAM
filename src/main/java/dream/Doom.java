@@ -107,11 +107,9 @@ final class Doom {
             }
 
             String message = doom.step(command);
-            Terminal.printFrame(doom.render(), 13, VIEW_COLOR);
-
-            if (message != null) {
-                Terminal.print(message, 15, 15, Color.WHITE);
-            }
+            // The status travels with the frame, so the viewport is replaced
+            // in place instead of a new seventeen-row block being appended.
+            Terminal.printFrame(doom.render(), message, 13, VIEW_COLOR);
 
             if (doom.health <= 0) {
                 Terminal.print("you died. the imp walked through a wall to do it.",

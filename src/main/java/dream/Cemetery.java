@@ -38,9 +38,10 @@ final class Cemetery {
             .look(TextSpan.glitching(
                 "A crumpled piece of paper, the words are smudged and worn.. how long was he out here for?"
                     + " No matter how hard you squint the only words you can make out are \"Did you feel trapped in that rotting body, old friend?\" and something about a shack... weird."
-                    + " Underneath, pressed hard enough to tear the paper: \"three stops under the floor: the plate, the boards, the grave. he took the plate before the boards, and the grave was never first.\"",
+                    + " Underneath, pressed hard enough to tear the paper: \"three stops under the floor: a plate, some boards, and a grave. he took the plate before the boards, and the grave was never first.\"",
                 "rotting body"))
-            .hiddenWhen(() -> !SaveState.spokenToMysteriousMan)
+            .hiddenWhen(() -> !SaveState.spokenToMysteriousMan
+                || SaveState.isGone("crumpledPaper"))
             .build()
     );
 

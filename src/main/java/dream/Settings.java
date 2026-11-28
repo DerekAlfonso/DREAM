@@ -52,7 +52,7 @@ public final class Settings {
 
         sfxVolume = readFloat(props, "sfxVolume", sfxVolume);
         musicVolume = readFloat(props, "musicVolume", musicVolume);
-        textSpeed = readDouble(props, "textSpeed", textSpeed);
+        textSpeed = clampSpeed(readDouble(props, "textSpeed", textSpeed));
         textScale = clampScale(readDouble(props, "textScale", textScale));
         typingSounds = Boolean.parseBoolean(
             props.getProperty("typingSounds", String.valueOf(typingSounds)));

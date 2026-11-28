@@ -75,10 +75,12 @@ it runs offline and can be copied anywhere on its own.
 | `Home` / `End` while not typing | Jump to the oldest or newest line |
 | Mouse wheel | Scroll back through the log |
 | `menu` during the story | Save and return to the boot menu |
-| `quit` / `exit` | Quit the game |
+| `quit` | Quit the game |
 
-At the boot menu, type `ProjectDream.iso`, `settings.bin` or `credits.txt`.
-`exit` quits. On the credits and settings screens, `back` returns to the menu.
+At the boot menu, type `ProjectDream.iso`, `settings.bin` or `credits.txt`, or
+their numbers `1`-`3`. When a save exists, `C` continues it and `N` starts a
+new game (after a confirmation). `quit` quits. On the credits and settings
+screens, `back` returns to the menu.
 
 ## Settings
 

@@ -96,6 +96,10 @@ final class Scene {
 
             switch (verb) {
                 case "look":
+                case "examine":
+                case "inspect":
+                case "read":
+                case "check": {
                     if (target.toLowerCase().startsWith("at ")) {
                         target = target.substring(3).trim();
                     }
@@ -105,10 +109,15 @@ final class Scene {
                         look(target);
                     }
                     break;
+                }
                 case "interact":
                 case "use":
                 case "talk":
-                case "turn": {
+                case "turn":
+                case "open":
+                case "climb":
+                case "pull":
+                case "push": {
                     Outcome outcome = interact(target, verb);
                     if (outcome.finished()) {
                         return new Exit(null, false);
@@ -118,7 +127,15 @@ final class Scene {
                     }
                     break;
                 }
+                case "enter": {
+                    Exit entry = enter(target, verb);
+                    if (entry != null) {
+                        return entry;
+                    }
+                    break;
+                }
                 case "take":
+                case "grab":
                     take(target);
                     break;
                 case "go": {
@@ -133,9 +150,18 @@ final class Scene {
                     break;
                 }
                 case "inventory":
+                case "i":
                     showInventory();
                     break;
+                case "drop":
+                    drop(target);
+                    break;
+                case "notes":
+                case "journal":
+                    showNotes();
+                    break;
                 case "help":
+                case "?":
                     printHelp();
                     break;
                 default:
@@ -176,9 +202,19 @@ final class Scene {
      * where it was found can be read again down in the cellar.
      */
     private void look(String target) {
-        Interactable object = find(target);
+        Resolution room = resolveRoom(target);
+        if (room.ambiguous()) {
+            printAmbiguous(room.candidates());
+            return;
+        }
+        Interactable object = room.object();
         if (object == null) {
-            object = findCarried(target);
+            Resolution carried = resolveCarried(target);
+            if (carried.ambiguous()) {
+                printAmbiguous(carried.candidates());
+                return;
+            }
+            object = carried.object();
         }
         if (object == null) {
             Terminal.print("you don't see that here, and you're not carrying it.",
@@ -204,14 +240,30 @@ final class Scene {
             return STAY;
         }
 
-        Interactable object = find(target);
+        Resolution room = resolveRoom(target);
+        if (room.ambiguous()) {
+            printAmbiguous(room.candidates());
+            return STAY;
+        }
+        Interactable object = room.object();
+
         // USE <tool> ON <thing>: the tool is only the means; the thing changes.
         if (object == null) {
             String[] halves = splitOn(target);
             if (halves != null) {
-                Interactable tool = findCarried(halves[0]);
+                Resolution toolResult = resolveCarried(halves[0]);
+                if (toolResult.ambiguous()) {
+                    printAmbiguous(toolResult.candidates());
+                    return STAY;
+                }
+                Interactable tool = toolResult.object();
                 if (tool != null) {
-                    Interactable thing = find(halves[1]);
+                    Resolution thingResult = resolveRoom(halves[1]);
+                    if (thingResult.ambiguous()) {
+                        printAmbiguous(thingResult.candidates());
+                        return STAY;
+                    }
+                    Interactable thing = thingResult.object();
                     if (thing == null) {
                         printTargetUsage(verb, halves[1]);
                         return STAY;
@@ -226,7 +278,12 @@ final class Scene {
         }
         // A carried tool on its own goes to the one thing here it is good for.
         if (object == null) {
-            Interactable tool = findCarried(target);
+            Resolution toolResult = resolveCarried(target);
+            if (toolResult.ambiguous()) {
+                printAmbiguous(toolResult.candidates());
+                return STAY;
+            }
+            Interactable tool = toolResult.object();
             if (tool != null) {
                 Interactable thing = toolTarget(tool);
                 if (thing == null) {
@@ -252,6 +309,34 @@ final class Scene {
             Terminal.blankLine();
         }
         return new Outcome(destination, false);
+    }
+
+    /**
+     * ENTER first opens something in the room, and otherwise walks to a
+     * connected area. That makes ENTER DOOR, ENTER SHACK and ENTER UPSTAIRS
+     * all do what a player expects without a separate set of verbs.
+     */
+    private Exit enter(String target, String verb) throws InterruptedException {
+        if (target.isEmpty()) {
+            printTargetUsage(verb, null);
+            return null;
+        }
+        Resolution room = resolveRoom(target);
+        if (room.object() == null && !room.ambiguous()) {
+            CyaLocation named = CyaLocation.fromName(target);
+            if (named != null && CyaLocation.neighbours(here).contains(named)) {
+                CyaLocation destination = go(target);
+                return destination == null ? null : new Exit(destination, false);
+            }
+        }
+        Outcome outcome = interact(target, verb);
+        if (outcome.finished()) {
+            return new Exit(null, false);
+        }
+        if (outcome.destination() != null) {
+            return new Exit(outcome.destination(), false);
+        }
+        return null;
     }
 
     /** The first thing in this area a carried tool can be applied to. */
@@ -290,8 +375,24 @@ final class Scene {
             printTargetUsage("take", null);
             return;
         }
-        Interactable object = find(target);
+        Resolution room = resolveRoom(target);
+        if (room.ambiguous()) {
+            printAmbiguous(room.candidates());
+            return;
+        }
+        Interactable object = room.object();
         if (object == null) {
+            Resolution carried = resolveCarried(target);
+            if (carried.ambiguous()) {
+                printAmbiguous(carried.candidates());
+                return;
+            }
+            if (carried.object() != null) {
+                Terminal.print(carried.object().highlightNames("you already have the "
+                    + carried.object().displayName + "."),
+                    15, Game.standardSize, Color.WHITE);
+                return;
+            }
             printTargetUsage("take", target);
             return;
         }
@@ -349,8 +450,10 @@ final class Scene {
 
         // The house only opens once the cellar puzzle has been solved.
         if (destination == CyaLocation.HOUSE && !SaveState.cellarPuzzleSolved) {
+            String backTo = here == CyaLocation.SHACK_OUTER ? "the shack" : "the cemetery";
             Terminal.print("you try the doors of the house. every one of them is locked,"
-                + " and you can't find an unlocked door. You return to the shack, you can hear the faint hum of electronics beneath you",
+                + " and you can't find an unlocked door. You head back to " + backTo
+                + ", and somewhere beneath the ground you can hear the faint hum of electronics",
                 15, Game.standardSize, Color.RED);
             return null;
         }
@@ -368,6 +471,67 @@ final class Scene {
         Terminal.print("you can go to:", 15, Game.standardSize, Color.WHITE);
         for (CyaLocation exit : exits) {
             Terminal.print("- " + exit.displayName, 15, Game.standardSize, Color.WHITE);
+        }
+    }
+
+    /** Puts down a spent tool. Items still needed refuse to be dropped. */
+    private void drop(String target) {
+        if (target.isEmpty()) {
+            Terminal.print("drop what? use DROP <thing>, or INVENTORY to see what you carry.",
+                15, Game.standardSize, Color.RED);
+            return;
+        }
+        Resolution carried = resolveCarried(target);
+        if (carried.ambiguous()) {
+            printAmbiguous(carried.candidates());
+            return;
+        }
+        Interactable object = carried.object();
+        if (object == null) {
+            Terminal.print("you aren't carrying \"" + target + "\".",
+                15, Game.standardSize, Color.RED);
+            return;
+        }
+        if (!object.canDrop()) {
+            Terminal.print("you should keep the " + object.displayName + " for now.",
+                15, Game.standardSize, Color.RED);
+            return;
+        }
+        SaveState.dropItem(object.id);
+        Terminal.print(object.highlightNames("you set down the " + object.displayName + "."),
+            15, Game.standardSize, Color.WHITE);
+    }
+
+    /** A short journal of the clues found so far, so a long gap does not lose them. */
+    private void showNotes() {
+        Terminal.print("NOTES -----------", 15, Game.standardSize, Color.GREEN);
+        boolean any = false;
+        if (SaveState.purpose != null) {
+            Terminal.print("you are looking for: " + SaveState.purpose,
+                15, Game.standardSize, Color.WHITE);
+            any = true;
+        }
+        if (SaveState.hasItem("crumpledPaper") || SaveState.spokenToMysteriousMan) {
+            Terminal.print("- the man's note: the plate was taken before the boards, and the grave "
+                + "was never first.", 15, Game.standardSize, Color.WHITE);
+            any = true;
+        }
+        if (SaveState.readTableClue) {
+            Terminal.print("- the table: the boards were the last thing he shut.",
+                15, Game.standardSize, Color.WHITE);
+            any = true;
+        }
+        if (SaveState.cellarPuzzleSolved) {
+            Terminal.print("- the cellar: the pipe is open, and the house is awake.",
+                15, Game.standardSize, Color.WHITE);
+            any = true;
+        } else if (SaveState.valvesOpened > 0) {
+            Terminal.print("- the cellar: " + SaveState.valvesOpened
+                + " valves are open.", 15, Game.standardSize, Color.WHITE);
+            any = true;
+        }
+        if (!any) {
+            Terminal.print("nothing worth writing down yet.", 15, Game.standardSize, Color.GRAY);
         }
     }
 
@@ -390,20 +554,22 @@ final class Scene {
             15, Game.standardSize, Color.GREEN);
         printCommand("look", "describe the area you are in");
         printCommand("look [at] <thing>", "examine something here or carried");
-        printCommand("interact <thing>", "talk to or use something");
-        printCommand("talk <thing>", "alias for interact <thing>");
-        printCommand("use <thing>", "alias for interact <thing>");
+        printCommand("interact <thing>", "talk to, open, climb or use something");
+        printCommand("talk | use | turn", "aliases for interact <thing>");
+        printCommand("open | climb | pull", "aliases for interact <thing>");
         printCommand("use <tool> on <thing>", "apply a carried tool to something");
-        printCommand("turn <thing>", "alias for interact <thing>");
         printCommand("take <thing>", "pick something up");
+        printCommand("drop <thing>", "put down a spent tool");
         printCommand("inventory", "show what you are carrying");
+        printCommand("notes | journal", "review the clues you have found");
         printCommand("go", "list where you can go");
         printCommand("go [to] <area>", "travel to a connected area");
         printCommand("go back", "return to the previous area");
         printCommand("help", "show this command list");
         printCommand("leave", "return to the previous area");
         printCommand("back | return | home", "aliases for leave");
-        printCommand("quit | exit", "quit the game (with confirmation)");
+        printCommand("menu", "save and return to the boot menu");
+        printCommand("quit", "quit the game (with confirmation)");
         Terminal.divider();
     }
 
@@ -431,29 +597,83 @@ final class Scene {
         Terminal.print(message, 15, Game.standardSize, Color.RED);
     }
 
-    private Interactable find(String name) {
-        String target = normalizeTarget(name);
-        for (Interactable object : objects) {
-            if (!object.isHidden() && object.matches(target)) {
-                return object;
+    private record Resolution(Interactable object, List<Interactable> candidates) {
+        boolean ambiguous() {
+            return object == null && !candidates.isEmpty();
+        }
+    }
+
+    private static final Resolution NONE = new Resolution(null, List.of());
+
+    private Resolution resolveRoom(String name) {
+        return resolve(objects, name, true);
+    }
+
+    private Resolution resolveCarried(String name) {
+        List<Interactable> carried = new ArrayList<>();
+        for (String id : SaveState.takenObjects) {
+            Interactable object = ObjectCatalog.byId(id);
+            if (object != null) {
+                carried.add(object);
             }
         }
-        return null;
+        return resolve(carried, name, false);
     }
 
     /**
-     * The same lookup against the inventory, so LOOK works on anything carried
-     * no matter which area the player is standing in.
+     * Finds an object by an exact name first, then by a unique word prefix.
+     * Several matches come back as candidates so the caller can ask which one.
      */
-    private Interactable findCarried(String name) {
+    private static Resolution resolve(List<Interactable> pool, String name, boolean skipHidden) {
         String target = normalizeTarget(name);
-        for (String id : SaveState.takenObjects) {
-            Interactable object = ObjectCatalog.byId(id);
-            if (object != null && object.matches(target)) {
-                return object;
+        if (target.isEmpty()) {
+            return NONE;
+        }
+
+        List<Interactable> exact = new ArrayList<>();
+        for (Interactable object : pool) {
+            if ((!skipHidden || !object.isHidden()) && object.matches(target)) {
+                exact.add(object);
             }
         }
-        return null;
+        if (exact.size() == 1) {
+            return new Resolution(exact.get(0), List.of());
+        }
+        if (exact.size() > 1) {
+            return new Resolution(null, List.copyOf(exact));
+        }
+
+        if (target.length() < 2) {
+            return NONE;
+        }
+        List<Interactable> partial = new ArrayList<>();
+        for (Interactable object : pool) {
+            if ((!skipHidden || !object.isHidden()) && object.matchesPartially(target)) {
+                partial.add(object);
+            }
+        }
+        if (partial.size() == 1) {
+            return new Resolution(partial.get(0), List.of());
+        }
+        if (partial.size() > 1) {
+            return new Resolution(null, List.copyOf(partial));
+        }
+        return NONE;
+    }
+
+    /** Lists the objects a partial name matched, so the player can be specific. */
+    private void printAmbiguous(List<Interactable> candidates) {
+        Terminal.print("which one do you mean?", 15, Game.standardSize, Color.RED);
+        int shown = 0;
+        for (Interactable object : candidates) {
+            if (shown == 6) {
+                Terminal.print("... and " + (candidates.size() - shown) + " more.",
+                    15, Game.standardSize, Color.GRAY);
+                break;
+            }
+            Terminal.print("- " + object.displayName, 15, Game.standardSize, Color.WHITE);
+            shown++;
+        }
     }
 
     /** A typed name with the leading "the" dropped, as the aliases are stored. */

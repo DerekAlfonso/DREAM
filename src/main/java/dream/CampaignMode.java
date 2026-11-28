@@ -19,9 +19,10 @@ import java.util.Random;
  */
 final class CampaignMode {
 
-    @FunctionalInterface
     interface Input {
         String read() throws InterruptedException;
+
+        String readAllowBlank() throws InterruptedException;
     }
 
     /** One floor of the keep. */
@@ -123,8 +124,9 @@ final class CampaignMode {
             20, 15, Color.WHITE);
         Terminal.print("Each depth is one fight. Clear it and the keep makes you stronger.",
             20, 15, Color.WHITE);
-        Terminal.print("In combat, type ATTACK or HEAL. At a landing you can rest once.",
+        Terminal.print("In combat, choose 1/A ATTACK or 2/H HEAL. Press ENTER to repeat.",
             20, 15, Color.WHITE);
+        Terminal.print("At a landing you can rest once.", 20, 15, Color.WHITE);
         Terminal.print("Type SKIP at any prompt to abandon the run and return to the dungeon menu.",
             20, 15, Color.GREEN);
         Terminal.blankLine();
@@ -149,26 +151,41 @@ final class CampaignMode {
             20, 15, depth.boss ? Color.RED : Color.WHITE);
         Terminal.print(enemy.type.description, 20, 15, Color.WHITE);
         DungeonCombat.printEnemyStatus(enemy);
+        String lastAction = null;
 
         while (enemy.isAlive() && player.isAlive()) {
             Terminal.blankLine();
             DungeonCombat.printStatus(player, enemy);
-            Terminal.print("type ATTACK to strike or HEAL to use a potion.",
+            Terminal.print("[1] ATTACK   [2] HEAL   (A/H, ENTER repeats)",
                 15, 15, Color.WHITE);
 
-            String action = ask();
+            String action = readCombatAction();
             if (left) {
                 return false;
             }
+            if (matches(action, "skip")) {
+                continue;
+            }
+            if (action.isEmpty()) {
+                if (lastAction == null) {
+                    Terminal.print("choose an action once before repeating it.",
+                        20, 15, Color.RED);
+                    continue;
+                }
+                action = lastAction;
+            }
 
-            if (matches(action, "1", "attack")) {
+            if (matches(action, "1", "a", "attack")) {
+                lastAction = "attack";
                 DungeonCombat.attack(player, enemy, random);
-            } else if (matches(action, "2", "heal", "potion")) {
+            } else if (matches(action, "2", "h", "heal", "potion")) {
+                lastAction = "heal";
                 if (!DungeonCombat.usePotion(player)) {
                     continue;
                 }
             } else {
-                Terminal.print("please type ATTACK or HEAL.", 20, 15, Color.RED);
+                Terminal.print("please choose 1/A ATTACK or 2/H HEAL.",
+                    20, 15, Color.RED);
                 continue;
             }
 
@@ -225,16 +242,23 @@ final class CampaignMode {
                 }
                 rested = true;
                 int healed = player.heal(REST_HEAL);
-                player.potions = Math.min(player.maxPotions, player.potions + 1);
+                boolean refilled = player.potions < player.maxPotions;
+                if (refilled) {
+                    player.potions++;
+                }
                 Terminal.print(healed > 0
                     ? "You sit with your back to the wall and recover " + healed + " HP."
                     : "You are already whole. You sit a while anyway.",
                     20, 15, Color.GREEN);
-                Terminal.print("You refill one potion.",
-                    20, 15, Color.GREEN);
+                if (refilled) {
+                    Terminal.print("You refill one potion.", 20, 15, Color.GREEN);
+                }
                 continue;
             }
-            if (matches(choice, "3", "leave", "out", "exit")) {
+            if (matches(choice, "3", "leave", "out")) {
+                if (!confirmAbandon()) {
+                    continue;
+                }
                 left = true;
                 return false;
             }
@@ -261,13 +285,32 @@ final class CampaignMode {
     /** Reads an answer, noticing SKIP wherever the run happens to be. */
     private String ask() throws InterruptedException {
         String answer = input.read();
-        if (matches(answer, "skip")) {
+        if (matches(answer, "skip") && confirmAbandon()) {
             left = true;
         }
         return answer;
     }
 
+    /** Like ask(), but an empty Enter reaches the combat repeat logic. */
+    private String readCombatAction() throws InterruptedException {
+        String answer = input.readAllowBlank();
+        if (matches(answer, "skip") && confirmAbandon()) {
+            left = true;
+        }
+        return answer;
+    }
+
+    /** One-line confirmation before SKIP or LEAVE throws the run away. */
+    private boolean confirmAbandon() throws InterruptedException {
+        Terminal.print("Abandon this run? type YES to leave, or NO to keep fighting.",
+            20, 15, Color.WHITE);
+        return matches(input.read(), "yes", "y");
+    }
+
     private static boolean matches(String input, String... choices) {
+        if (input == null) {
+            return false;
+        }
         for (String choice : choices) {
             if (input.equalsIgnoreCase(choice)) {
                 return true;

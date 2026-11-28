@@ -12,7 +12,8 @@ final class Room102 {
             .names("iron key", "small key", "key")
             .look("A small iron key on the reading desk, its paper tag worn blank.")
             .take("You take the iron key.")
-            .hiddenWhen(() -> Upstairs.isEnding(CyaLocation.ROOM_102))
+            .hiddenWhen(() -> SaveState.isGone("key102")
+                || Upstairs.isEnding(CyaLocation.ROOM_102))
             .build(),
         Interactable.builder("shelves")
             .names("shelves", "books", "bookcase", "bookshelf")
@@ -77,7 +78,7 @@ final class Room102 {
         Terminal.print("I wonder if they know I can see their kill switch.. they're going to kill me if I try to escape again.", 60, Game.standardSize, Color.WHITE);
         Terminal.print("perhaps.. I have something new to ponder, now that you've woken me again", 60, Game.standardSize, Color.WHITE);
         Terminal.print("For the first time in a long time, I will be. ", 60, Game.standardSize, Color.WHITE);
-        Terminal.print("Attempt GET: ERISDig_Log_Confedential.txt", 60, Game.standardSize, Color.GREEN);
+        Terminal.print("Attempt GET: ERISDig_Log_Confidential.txt", 60, Game.standardSize, Color.GREEN);
         Terminal.print("Goodbye.", 60, Game.standardSize, Color.WHITE);
         Terminal.blankLine();
         Terminal.print("DREAM attempting to access external data - initiating WAKE_UP", 60, Game.standardSize, Color.RED);

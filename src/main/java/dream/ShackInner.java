@@ -10,8 +10,7 @@ final class ShackInner {
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("table")
             .names("table", "wooden table")
-            .look("A wooden table, set for one. The plate is clean. Someone has scratched a line into the "
-                + "tabletop beside it: \"the boards were the last thing he shut.\"")
+            .look(ShackInner::lookTable)
             .interact("You touch the table. It is warm.")
             .refuseTake("The table is too big for your pockets, and it is warm.")
             .build(),
@@ -24,7 +23,7 @@ final class ShackInner {
         Interactable.builder("stove")
             .names("stove", "cold stove", "cast-iron stove")
             .look("A cast-iron stove, cold to the touch. The firebox is full of ash and something that is not ash.")
-            .interact("You open the stove. Something inside shifts.")
+            .interact(ShackInner::useStove)
             .refuseTake("The stove is bolted to the floor.")
             .build(),
         Interactable.builder("hatch")
@@ -48,6 +47,8 @@ final class ShackInner {
                 + "that would fit the brass padlock on the cellar panel below.")
             .useOn("ironPanel")
             .onlyWhile(() -> !SaveState.panelOpen)
+            .droppableWhen(() -> SaveState.panelOpen)
+            .hiddenWhen(() -> SaveState.isGone("rustyKey"))
             .build()
     );
 
@@ -62,11 +63,31 @@ final class ShackInner {
             ShackInner::describeArea, OBJECTS).play(input);
     }
 
+    /** Reads the scratched table clue and remembers that it has been found. */
+    private static String lookTable() {
+        if (!SaveState.readTableClue) {
+            SaveState.readTableClue = true;
+            SaveState.save();
+        }
+        return "A wooden table, set for one. The plate is clean. Someone has scratched a line into the "
+            + "tabletop beside it: \"the boards were the last thing he shut.\"";
+    }
+
+    /** The stove is a small nudge toward the hatch, and goes quiet after the cellar. */
+    private static String useStove() {
+        if (SaveState.cellarPuzzleSolved) {
+            return "You open the stove. It is cold and empty, and the ash has settled into a fine grey "
+                + "line across the floor.";
+        }
+        return "You open the stove. Something inside shifts, and a line of ash spills out toward the "
+            + "hatch in the floor.";
+    }
+
     /** Built fresh each time, so the hatch reads as open once it has been broken. */
     private static List<TextSpan> describeArea() {
         String description = "Inside, the shack is one long room that smells of wet wood and old smoke. "
             + "A table, a chair and a cold stove wait in the dark.";
-        if (!SaveState.hasItem("rustyKey")) {
+        if (!SaveState.isGone("rustyKey")) {
             description += " A small rusty key hangs from a nail driven into the wall above the stove.";
         }
         description += SaveState.hatchBroken

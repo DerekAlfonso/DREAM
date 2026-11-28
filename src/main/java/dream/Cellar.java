@@ -21,12 +21,6 @@ final class Cellar {
      */
     private static final List<String> ORDER = List.of("plateValve", "graveValve", "boardValve");
 
-    /**
-     * Valves opened so far in the right order. A wrong one sets them all back, and
-     * the count is not saved, so reloading always starts the sequence again.
-     */
-    private static int opened = 0;
-
     private static final List<Interactable> OBJECTS = List.of(
         Interactable.builder("cellarHatch")
             .names("hatch", "ladder", "way up", "ceiling hatch")
@@ -37,20 +31,26 @@ final class Cellar {
             .build(),
         Interactable.builder("plateValve")
             .names("plate valve", "plate", "brass valve")
-            .look("A brass valve is bolted to the pipe, its handle worn bright where hands have worked it. "
-                + "Stamped into the brass is a plate, set for one.")
+            .look(() -> valveLook(
+                "A brass valve is bolted to the pipe, its handle worn bright where hands have worked it. "
+                    + "Stamped into the brass is a plate, set for one.",
+                0))
             .interact(() -> turnValve("plateValve"))
             .refuseTake("The valve is bolted through the pipe. You would have to take the pipe with it.")
             .build(),
         Interactable.builder("boardValve")
             .names("board valve", "board", "boards", "iron valve")
-            .look("An iron valve, heavier than the other, stamped with a board and a nail driven through it.")
+            .look(() -> valveLook(
+                "An iron valve, heavier than the other, stamped with a board and a nail driven through it.",
+                2))
             .interact(() -> turnValve("boardValve"))
             .refuseTake("The valve is bolted through the pipe. It is not going anywhere.")
             .build(),
         Interactable.builder("graveValve")
             .names("grave valve", "grave", "stone", "leaning stone")
-            .look("A small valve, half eaten by rust, stamped with a leaning headstone.")
+            .look(() -> valveLook(
+                "A small valve, half eaten by rust, stamped with a leaning headstone.",
+                1))
             .interact(() -> turnValve("graveValve"))
             .refuseTake("The valve is bolted to the pipe, behind a panel that has its own opinions.")
             .hiddenWhen(() -> !SaveState.panelOpen)
@@ -75,11 +75,11 @@ final class Cellar {
     }
 
     /**
-     * Clears valve progress that was never saved, so a new run starts with
-     * no valves open even when the same process just played another sequence.
+     * Clears valve progress for a fresh run or checkpoint, so the sequence
+     * always starts with the plate valve.
      */
     static void resetProgress() {
-        opened = 0;
+        SaveState.valvesOpened = 0;
     }
 
     /** Built fresh each time, so the panel reads as open once the key has been in it. */
@@ -88,12 +88,21 @@ final class Cellar {
             + "you letting in a pale square of light. A rusted pipe climbs out of the floor and into the wall, "
             + "and two valves are bolted to it in a row, one stamped with a plate and one with a board.";
         description += SaveState.panelOpen
-            ? " The iron panel at the foot of the pipe hangs open on its hinge."
+            ? " The iron panel at the foot of the pipe hangs open on its hinge, and a third "
+                + "valve, stamped with a leaning stone, is bolted to the pipe inside it."
             : " An iron panel at the foot of the pipe is held shut by a brass padlock.";
         if (SaveState.cellarPuzzleSolved) {
             description += " The pipe is silent now, and somewhere above, the house is awake.";
         }
         return TextSpan.highlighting(description, Scene.NAME, "plate", "board", "panel");
+    }
+
+    /** Describes one valve's handle, including whether it is already open. */
+    private static String valveLook(String description, int index) {
+        if (SaveState.cellarPuzzleSolved || SaveState.valvesOpened > index) {
+            return description + " The handle hangs open.";
+        }
+        return description + " The handle is still shut.";
     }
 
     private static String describePanel() {
@@ -138,20 +147,26 @@ final class Cellar {
                 + "The rust softens, and the handle shifts a fraction under your hand.";
         }
 
-        if (!ORDER.get(opened).equals(id)) {
-            opened = 0;
+        if (SaveState.valvesOpened >= ORDER.size()) {
+            SaveState.valvesOpened = 0;
+        }
+        if (!ORDER.get(SaveState.valvesOpened).equals(id)) {
+            SaveState.valvesOpened = 0;
+            SaveState.save();
             return "You haul the valve round. Water slams shut somewhere in the pipe, the other valves "
                 + "shudder on their bolts, and everything settles back the way it was. The sequence has "
                 + "restarted. Begin again at the plate valve.";
         }
 
-        opened++;
-        if (opened < ORDER.size()) {
+        SaveState.valvesOpened++;
+        if (SaveState.valvesOpened < ORDER.size()) {
+            SaveState.save();
             return "The valve turns with a grinding shriek. Water moves somewhere above you, and the handle "
-                + "goes slack in your hand, like the pipe is waiting for the next one.";
+                + "goes slack in your hand, like the pipe is waiting for the next one. ("
+                + SaveState.valvesOpened + " of 3 valves open.)";
         }
 
-        opened = 0;
+        SaveState.valvesOpened = 0;
         SaveState.cellarPuzzleSolved = true;
         SaveState.save();
         return "You turn the last valve, and the pipe takes water with a sound like a long swallow. Far "

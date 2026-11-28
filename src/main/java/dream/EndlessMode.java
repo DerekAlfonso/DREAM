@@ -15,9 +15,10 @@ import java.util.Random;
  */
 final class EndlessMode {
 
-    @FunctionalInterface
     interface Input {
         String read() throws InterruptedException;
+
+        String readAllowBlank() throws InterruptedException;
     }
 
     @FunctionalInterface
@@ -103,8 +104,8 @@ final class EndlessMode {
         Terminal.print("ENDLESS MODE", 20, 22, Color.CYAN);
         Terminal.print("The dungeon has no bottom. Every room is worse than the last.",
             20, 15, Color.WHITE);
-        Terminal.print("In combat, type ATTACK or HEAL; once you have cleared a room you can"
-            + " LEAVE a fight.", 20, 15, Color.WHITE);
+        Terminal.print("In combat, choose 1/A ATTACK or 2/H HEAL; press ENTER to repeat."
+            + " Once you have cleared a room you can LEAVE a fight.", 20, 15, Color.WHITE);
         Terminal.print("Between rooms, choose another room, visit the shop, or LEAVE.",
             20, 15, Color.WHITE);
         Terminal.print("Type SKIP at any prompt to abandon the run and return to the dungeon menu.",
@@ -115,10 +116,26 @@ final class EndlessMode {
     /** Reads an answer, noticing SKIP wherever the run happens to be. */
     private String ask() throws InterruptedException {
         String answer = input.read();
-        if (matches(answer, "skip")) {
+        if (matches(answer, "skip") && confirmAbandon()) {
             skipped = true;
         }
         return answer;
+    }
+
+    /** Like ask(), but an empty Enter reaches the combat repeat logic. */
+    private String readCombatAction() throws InterruptedException {
+        String answer = input.readAllowBlank();
+        if (matches(answer, "skip") && confirmAbandon()) {
+            skipped = true;
+        }
+        return answer;
+    }
+
+    /** One-line confirmation before SKIP or LEAVE throws the run away. */
+    private boolean confirmAbandon() throws InterruptedException {
+        Terminal.print("Abandon this run? type YES to leave, or NO to keep fighting.",
+            20, 15, Color.WHITE);
+        return matches(input.read(), "yes", "y");
     }
 
     private boolean fightRoom() throws InterruptedException {
@@ -130,6 +147,7 @@ final class EndlessMode {
             20, 15, Color.WHITE);
         Terminal.print(enemy.type.description, 20, 15, Color.WHITE);
         printEnemyStatus(enemy);
+        String lastAction = null;
 
         while (enemy.isAlive() && player.isAlive()) {
             Terminal.blankLine();
@@ -137,30 +155,46 @@ final class EndlessMode {
             // One room is all the dungeon insists on; after that a fight is optional.
             boolean mayLeave = roomsCleared > 0;
             Terminal.print(mayLeave
-                ? "type ATTACK to strike, HEAL to use a potion, or LEAVE to get out."
-                : "type ATTACK to strike or HEAL to use a potion.",
+                ? "[1] ATTACK   [2] HEAL   [3] LEAVE   (A/H, ENTER repeats)"
+                : "[1] ATTACK   [2] HEAL   (A/H, ENTER repeats)",
                 15, 15, Color.WHITE);
-            String action = ask();
+            String action = readCombatAction();
             if (skipped) {
                 return false;
             }
+            if (matches(action, "skip")) {
+                continue;
+            }
+            if (action.isEmpty()) {
+                if (lastAction == null) {
+                    Terminal.print("choose an action once before repeating it.",
+                        20, 15, Color.RED);
+                    continue;
+                }
+                action = lastAction;
+            }
 
-            if (mayLeave && matches(action, "leave", "flee", "run")) {
+            if (mayLeave && matches(action, "3", "l", "leave", "flee", "run")) {
+                if (!confirmAbandon()) {
+                    continue;
+                }
                 Terminal.print("You back away from the " + enemy.type.name
                     + " and slip out of the room.", 20, 15, Color.WHITE);
                 return false;
             }
 
-            if (matches(action, "1", "attack")) {
+            if (matches(action, "1", "a", "attack")) {
+                lastAction = "attack";
                 attack(enemy);
-            } else if (matches(action, "2", "heal", "potion")) {
+            } else if (matches(action, "2", "h", "heal", "potion")) {
+                lastAction = "heal";
                 if (!usePotion()) {
                     continue;
                 }
             } else {
                 Terminal.print(mayLeave
-                    ? "please type ATTACK, HEAL or LEAVE."
-                    : "please type ATTACK or HEAL.", 20, 15, Color.RED);
+                    ? "please choose 1/A ATTACK, 2/H HEAL or 3 LEAVE."
+                    : "please choose 1/A ATTACK or 2/H HEAL.", 20, 15, Color.RED);
                 continue;
             }
 
@@ -224,6 +258,9 @@ final class EndlessMode {
                 return "shop";
             }
             if (matches(choice, "3", "leave", "flee")) {
+                if (!confirmAbandon()) {
+                    continue;
+                }
                 return "leave";
             }
             Terminal.print("choose 1 for a new room, 2 for the shop, or 3 to leave.",
@@ -376,6 +413,9 @@ final class EndlessMode {
     }
 
     private static boolean matches(String input, String... choices) {
+        if (input == null) {
+            return false;
+        }
         for (String choice : choices) {
             if (input.equalsIgnoreCase(choice)) {
                 return true;

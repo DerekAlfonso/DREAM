@@ -1,6 +1,7 @@
 package dream;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import java.awt.Dimension;
@@ -49,6 +50,9 @@ public final class Main {
 
     private static JFrame frame;
     private static Game game;
+
+    /** Set once shutdown has started, so the close prompt cannot run twice. */
+    private static volatile boolean shuttingDown = false;
 
     /** Set by --doom: jump straight to the easter egg instead of the menu. */
     static boolean startInDoom = false;
@@ -238,7 +242,16 @@ public final class Main {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                shutdown();
+                if (shuttingDown) {
+                    return;
+                }
+                int choice = JOptionPane.showConfirmDialog(frame,
+                    "Quit D.R.E.A.M.?\nProgress since the last save will be lost.",
+                    "Quit D.R.E.A.M.", JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+                if (choice == JOptionPane.YES_OPTION) {
+                    shutdown();
+                }
             }
         });
 
@@ -251,6 +264,7 @@ public final class Main {
 
     /** Saves, releases the sound card and closes down cleanly. */
     public static void shutdown() {
+        shuttingDown = true;
         Log.info("Shutting down.");
         if (game != null) {
             game.stop();

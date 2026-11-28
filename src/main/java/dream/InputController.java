@@ -64,14 +64,12 @@ public class InputController extends KeyAdapter implements MouseWheelListener {
                 Terminal.handleHistory(1);
                 break;
             case KeyEvent.VK_PAGE_UP:
-                if (!Terminal.isAwaitingInput()) {
-                    scrollBy(Terminal.pageStep());
-                }
+                // Page keys scroll even while an answer is being typed, so
+                // earlier text stays reachable without the mouse.
+                scrollBy(Terminal.pageStep());
                 break;
             case KeyEvent.VK_PAGE_DOWN:
-                if (!Terminal.isAwaitingInput()) {
-                    scrollBy(-Terminal.pageStep());
-                }
+                scrollBy(-Terminal.pageStep());
                 break;
             case KeyEvent.VK_ENTER:
                 if (!enterHeld) {

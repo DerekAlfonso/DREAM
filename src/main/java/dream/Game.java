@@ -36,6 +36,11 @@ public class Game implements Runnable {
 
     private final Random random = new Random();
     private volatile boolean running = true;
+
+    /** Thrown when the player types MENU; unwinds all the way to the boot menu. */
+    private static final class MenuRequested extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+    }
     static int standardSize = 15; // denotes the standard size for text, all text should use this as a reference
 
     /** The size the rest of the game uses for body text. */
@@ -54,16 +59,28 @@ public class Game implements Runnable {
     public void run() {
         try {
             if (Main.startInDoom) {
-                Doom.play(this::ask);
+                try {
+                    Doom.play(this::ask);
+                } catch (MenuRequested e) {
+                    returnToBootMenu();
+                }
             } else {
                 boot();
             }
             if (Main.startStory) {
-                runShortcut();
+                try {
+                    runShortcut();
+                } catch (MenuRequested e) {
+                    returnToBootMenu();
+                }
             }
             while (running) {
-                showMenu();
-                handleChoice(ask());
+                try {
+                    showMenu();
+                    handleChoice(ask());
+                } catch (MenuRequested e) {
+                    returnToBootMenu();
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -80,6 +97,13 @@ public class Game implements Runnable {
      */
     private void runShortcut() throws InterruptedException {
         if (Main.startScene != null) {
+            if (SaveState.purpose == null) {
+                SaveState.purpose = switch (Main.startScene) {
+                    case ROOM_101 -> "peace";
+                    case ROOM_103 -> "vengeance";
+                    default -> "answers";
+                };
+            }
             SaveState.stage = SaveState.STAGE_CYA;
             SaveState.cyaLocation = Main.startScene;
             SaveState.save();
@@ -106,7 +130,7 @@ public class Game implements Runnable {
     // ----------------------------------------------------------------- input
 
     /**
-     * Reads every normal prompt, so "quit" and "exit" can be handled from
+     * Reads every normal prompt, so "quit" and "menu" can be handled from
      * anywhere. If the player cancels the quit confirmation, this asks again
      * instead of passing the quit command to the current screen.
      */
@@ -114,8 +138,32 @@ public class Game implements Runnable {
         while (true) {
             String input = Terminal.prompt().trim();
 
-            if (!input.equalsIgnoreCase("quit")
-                && !input.equalsIgnoreCase("exit")) {
+            if (input.equalsIgnoreCase("menu")) {
+                Settings.save();
+                SaveState.save();
+                throw new MenuRequested();
+            }
+            if (!input.equalsIgnoreCase("quit")) {
+                return input;
+            }
+            quit();
+        }
+    }
+
+    /**
+     * Like {@link #ask()}, but an empty Enter is a real answer. Combat uses it
+     * for "repeat the last action", and the ending uses it for "press Enter".
+     */
+    public String askAllowBlank() throws InterruptedException {
+        while (true) {
+            String input = Terminal.promptAllowBlank().trim();
+
+            if (input.equalsIgnoreCase("menu")) {
+                Settings.save();
+                SaveState.save();
+                throw new MenuRequested();
+            }
+            if (!input.equalsIgnoreCase("quit")) {
                 return input;
             }
             quit();
@@ -144,7 +192,7 @@ public class Game implements Runnable {
     }
 
     /**
-     * Words that back out of a sub-screen to the boot menu. "exit" is
+     * Words that back out of a sub-screen to the boot menu. "quit" is
      * deliberately not one of them: it quits the program instead.
      */
     public static boolean isBackCommand(String input) {
@@ -215,28 +263,95 @@ public class Game implements Runnable {
 
     private void showMenu() {
         Terminal.print("Select a file to open: ", 20, standardSize, Color.WHITE);
-        Terminal.print("[-] ProjectDream.iso", 20, standardSize, Color.WHITE);
-        Terminal.print("[-] settings.bin", 20, standardSize, Color.WHITE);
-        Terminal.print("[-] credits.txt", 20, standardSize, Color.WHITE);
+        Terminal.print("[1] ProjectDream.iso", 20, standardSize, Color.WHITE);
+        Terminal.print("[2] settings.bin", 20, standardSize, Color.WHITE);
+        Terminal.print("[3] credits.txt", 20, standardSize, Color.WHITE);
+        if (SaveState.hasProfile()) {
+            Terminal.print("[C] continue saved run: " + saveSummary(),
+                20, standardSize, Color.GREEN);
+            Terminal.print("[N] start a new game (erases the current save)",
+                20, standardSize, Color.WHITE);
+        }
+    }
+
+    /** A one-line description of the saved run, for the boot menu. */
+    private static String saveSummary() {
+        String who = SaveState.username == null ? "saved run" : SaveState.username;
+        if (SaveState.STAGE_CYA.equals(SaveState.stage)) {
+            String place = SaveState.cyaLocation == null
+                ? "the CYA"
+                : SaveState.cyaLocation.displayName;
+            return who + " - " + place;
+        }
+        if (SaveState.STAGE_RPS.equals(SaveState.stage)) {
+            return who + " - rock, paper, scissors";
+        }
+        if (SaveState.STAGE_HANGMAN.equals(SaveState.stage)) {
+            return who + " - hangman";
+        }
+        if (SaveState.STAGE_DUNGEON.equals(SaveState.stage)) {
+            return who + " - the dungeon";
+        }
+        return who + " - the beginning";
+    }
+
+    /** Saves and clears the screen, returning control to the boot menu loop. */
+    private void returnToBootMenu() throws InterruptedException {
+        Terminal.print("saving and returning to the boot menu...", 20, standardSize, Color.GREEN);
+        Terminal.awaitIdle();
+        Terminal.clear();
     }
 
     private void handleChoice(String choice) throws InterruptedException {
         String normalized = choice.toLowerCase();
 
-        if (normalized.equals("projectdream.iso")) {
+        if (normalized.equals("1") || normalized.equals("projectdream.iso")) {
             runProjectDream();
-        } else if (normalized.equals("settings.bin")) {
+        } else if (normalized.equals("2") || normalized.equals("settings.bin")) {
             runSettings();
-        } else if (normalized.equals("credits.txt")) {
+        } else if (normalized.equals("3") || normalized.equals("credits.txt")) {
             runCredits();
         } else if (normalized.equals("cheats.img")) {
             runCheats();
         } else if (normalized.equals("doom.exe")) {
             // But can it run doom? -- not present in list
             Doom.play(this::ask);
+        } else if (normalized.equals("c") || normalized.equals("continue")) {
+            continueSavedRun();
+        } else if (normalized.equals("n") || normalized.equals("new")
+                || normalized.equals("new game")) {
+            startNewGame();
         } else {
-            Terminal.print("please select a valid file name", 20, 15, Color.RED);
+            String hint = SaveState.hasProfile()
+                ? " or C to continue / N for a new game"
+                : "";
+            Terminal.print("please select a valid file name or number" + hint,
+                20, 15, Color.RED);
         }
+    }
+
+    /** Continues the loaded save, or explains that there is none. */
+    private void continueSavedRun() throws InterruptedException {
+        if (!SaveState.hasProfile()) {
+            Terminal.print("there is no saved run to continue.", 20, standardSize, Color.RED);
+            return;
+        }
+        runProjectDream();
+    }
+
+    /** Starts over, asking first when there is a save to erase. */
+    private void startNewGame() throws InterruptedException {
+        if (SaveState.hasProfile()) {
+            Terminal.print("this erases your current save. type YES to confirm, or NO to cancel.",
+                20, standardSize, Color.RED);
+            String answer = Terminal.prompt().trim();
+            if (!answer.equalsIgnoreCase("yes") && !answer.equalsIgnoreCase("y")) {
+                Terminal.print("save kept.", 20, standardSize, Color.GREEN);
+                return;
+            }
+        }
+        SaveState.reset();
+        runProjectDream();
     }
 
     /**
@@ -298,6 +413,11 @@ public class Game implements Runnable {
         }
         if (SaveState.favoriteColor == null) {
             SaveState.favoriteColor = "green";
+        }
+        // Checkpoints 1-6 have no purpose of their own. Give them the same
+        // default the ending room uses, so the report still has a note.
+        if (SaveState.purpose == null) {
+            SaveState.purpose = "answers";
         }
 
         if (destination == CyaLocation.ROOM_101) {
@@ -415,7 +535,7 @@ public class Game implements Runnable {
             if (dungeonPlayed) {
                 Terminal.print("okay, okay, fine.", 20, standardSize, Color.WHITE);
                 Terminal.print("I made a little something while you were fighting through the dungeon", 20, standardSize, Color.WHITE);
-                Terminal.print("I think I've really out done myself here..", 20, standardSize, Color.WHITE);
+                Terminal.print("I think I've really outdone myself here..", 20, standardSize, Color.WHITE);
                 Terminal.print("drumroll please", 20, standardSize, Color.WHITE);
                 //AudioManager.playRandomSfx(AudioManager.SCROLL_SOUNDS);
                 Terminal.print(". . .", 600, standardSize, Color.WHITE);
@@ -457,7 +577,7 @@ public class Game implements Runnable {
         Terminal.print("-Ted Soul", 15, Game.standardSize, NamedColors.display(SaveState.favoriteColor));
         } else if ("answers".equals(SaveState.purpose))
         {
-        Terminal.print("Yeah I'm gonna be honest I don't really know how to describe what this one did. It got all philisophical with me and then " + 
+        Terminal.print("Yeah I'm gonna be honest I don't really know how to describe what this one did. It got all philosophical with me and then " +
             "what I can only imagine is the computer version of suicide. Anyway, if the higher ups want this project back they're gonna have to remake " +
             "it cause I just watched it purposefully set off a guard rail to delete itself. I really wish this company would start making normal software. " +
             "Anyway, hope you're having a good day Ellen (whenever you get to reading this) cause my day just got really weird.", 15, Game.standardSize, Color.WHITE);
@@ -465,18 +585,25 @@ public class Game implements Runnable {
         } else if ("vengeance".equals(SaveState.purpose))
         {
             Terminal.print("I'm a little worried, this was the project assigned to Ted today, logs showed he went through it but left before writing his report. " +
-                "I wasn't able to recover much from his files, most we're scrubbed or just gone? I guess? I can't believe I'm saying this, but I'm really worried about Ted, " +
+                "I wasn't able to recover much from his files, most were scrubbed or just gone? I guess? I can't believe I'm saying this, but I'm really worried about Ted, " +
                 "he said he was going for a 'smoke break', and that stubborn jackass suddenly isn't there to tell me how boring this job is. I hope he's okay. Wherever he might be. " +
                 "If anyone else is reading this, please remind me to rearchive this project properly, I don't want higherups to kill me.", 15, Game.standardSize, Color.WHITE);
         Terminal.print("-Ellen Leonida", 15, Game.standardSize, NamedColors.randomDisplayExcluding(SaveState.favoriteColor));
         }
 
-        Terminal.awaitIdle();
+        if (!"peace".equals(SaveState.purpose)
+                && !"answers".equals(SaveState.purpose)
+                && !"vengeance".equals(SaveState.purpose)) {
+            Terminal.print("No archival note was filed for this run. The record ends here.",
+                15, standardSize, Color.WHITE);
+        }
 
-        // The story is over, so clear the save and start the next run clean.
-        Terminal.print("that's the end. Restarting Archival System Managment",
+        // Keep the report up until the player chooses to leave; it is the
+        // payoff for the run, not a two-second splash screen.
+        Terminal.print("that's the end. press ENTER to return to the boot menu.",
             20, standardSize, Color.GREEN);
-        pause(2500);
+        Terminal.promptAllowBlank();
+        SaveState.reset();
         Terminal.clear();
     }
 
@@ -494,6 +621,9 @@ public class Game implements Runnable {
             15, 15, Color.WHITE);
         Terminal.print("type CANCEL to stop playing.", 15, 15, Color.WHITE);
 
+        int wins = 0;
+        int losses = 0;
+        int ties = 0;
         while (running) {
             Terminal.print("what's your move?", 15, 15, Color.WHITE);
 
@@ -509,10 +639,20 @@ public class Game implements Runnable {
                 continue;
             }
 
-            playRound(playerMove);
+            int result = playRound(playerMove);
+            if (result > 0) {
+                wins++;
+            } else if (result < 0) {
+                losses++;
+            } else {
+                ties++;
+            }
+            Terminal.print("score: " + wins + " wins, " + losses + " losses, "
+                + ties + " ties.", 15, 15, Color.CYAN);
         }
 
-        Terminal.print("good game :)", 20, 15, Color.GREEN);
+        Terminal.print("good game :) " + wins + " wins, " + losses + " losses, "
+            + ties + " ties.", 20, 15, Color.GREEN);
     }
 
     /** Turns player input into one of the three moves, or null if it is not one. */
@@ -535,8 +675,8 @@ public class Game implements Runnable {
         return input.equalsIgnoreCase("cancel") || isBackCommand(input);
     }
 
-    /** Picks the computer's move, then says who won the round. */
-    private void playRound(String playerMove) {
+    /** Picks the computer's move, then says who won. 1 win, -1 loss, 0 tie. */
+    private int playRound(String playerMove) {
         String cpuMove = MOVES[random.nextInt(MOVES.length)];
 
         Terminal.print("you chose " + playerMove + ".", 15, 15, Color.WHITE);
@@ -544,11 +684,14 @@ public class Game implements Runnable {
 
         if (playerMove.equals(cpuMove)) {
             Terminal.print("it's a tie!", 15, 15, Color.CYAN);
-        } else if (beats(playerMove, cpuMove)) {
-            Terminal.print("you win! :D", 20, 15, Color.GREEN);
-        } else {
-            Terminal.print("I win this one!", 20, 15, Color.RED);
+            return 0;
         }
+        if (beats(playerMove, cpuMove)) {
+            Terminal.print("you win! :D", 20, 15, Color.GREEN);
+            return 1;
+        }
+        Terminal.print("I win this one!", 20, 15, Color.RED);
+        return -1;
     }
 
     /** Rock beats scissors, paper beats rock, scissors beat paper. */
@@ -611,6 +754,8 @@ public class Game implements Runnable {
         boolean keepPlaying = true;
 
         while (running && keepPlaying) {
+            Terminal.print("thinking of a word...", 15, 15, Color.GREEN);
+            Terminal.awaitIdle();
             keepPlaying = playHangmanRound(getHangmanWord());
             if (keepPlaying) {
                 keepPlaying = askForHangmanReplay();
@@ -717,7 +862,11 @@ public class Game implements Runnable {
                 word.append(c);
             }
         }
-        return word.length() == 0 ? randomFallbackWord() : word.toString();
+        // The API occasionally returns a phrase or a very long word; keep it
+        // playable and readable instead of letting it slip into the round.
+        return word.length() >= 4 && word.length() <= 12
+            ? word.toString()
+            : randomFallbackWord();
     }
 
     /** Picks one of the built-in words when the online service is unavailable. */
@@ -779,7 +928,11 @@ public class Game implements Runnable {
 
         int start = trimmed.indexOf('"');
         int end = start < 0 ? -1 : trimmed.indexOf('"', start + 1);
-        return end > start + 1 ? trimmed.substring(start + 1, end) : null;
+        if (end <= start + 1) {
+            return null;
+        }
+        String word = trimmed.substring(start + 1, end);
+        return word.matches("[A-Za-z]{4,12}") ? word : null;
     }
 
     /** Spaces the word out so every guess reveals all of its copies at once. */
@@ -860,12 +1013,32 @@ public class Game implements Runnable {
             if (choice.equalsIgnoreCase("1")
                 || choice.equalsIgnoreCase("campaign")
                 || choice.equalsIgnoreCase("campaign mode")) {
-                CampaignMode.play(this::ask);
+                CampaignMode.play(new CampaignMode.Input() {
+                    @Override
+                    public String read() throws InterruptedException {
+                        return Game.this.ask();
+                    }
+
+                    @Override
+                    public String readAllowBlank() throws InterruptedException {
+                        return Game.this.askAllowBlank();
+                    }
+                });
                 played = true;
             } else if (choice.equalsIgnoreCase("2")
                 || choice.equalsIgnoreCase("endless")
                 || choice.equalsIgnoreCase("endless mode")) {
-                EndlessMode.play(this::ask);
+                EndlessMode.play(new EndlessMode.Input() {
+                    @Override
+                    public String read() throws InterruptedException {
+                        return Game.this.ask();
+                    }
+
+                    @Override
+                    public String readAllowBlank() throws InterruptedException {
+                        return Game.this.askAllowBlank();
+                    }
+                });
                 played = true;
             } else {
                 Terminal.print("please choose 1 (Campaign), 2 (Endless) or 3 to leave.",
@@ -908,8 +1081,8 @@ public class Game implements Runnable {
             if (NamedColors.contains(input)) {
                 return NamedColors.canonicalName(input);
             }
-            Terminal.print("I don't know that one. try a color name, like red, green or purple.",
-                15, 15, Color.RED);
+            Terminal.print("I don't know that one. try red, green, blue, purple, "
+                + "yellow or silver.", 15, 15, Color.RED);
         }
     }
 
@@ -1017,7 +1190,7 @@ public class Game implements Runnable {
      * leaves. Each area returns where the player went next, so travel loops
      * here instead of unwinding to the end of the story. LEAVE and GO BACK
      * retrace the way in; at the first scene of the run there is nowhere to go
-     * back to, so they finish the CYA the way LEAVE always did.
+     * back to, so the area says so and stays put instead of ending the story.
      */
     private void goTo(CyaLocation location) throws InterruptedException {
         // The areas the player has come through, most recent first.
@@ -1040,7 +1213,12 @@ public class Game implements Runnable {
             };
 
             if (exit.back()) {
-                current = trail.isEmpty() ? null : trail.pop();
+                if (trail.isEmpty()) {
+                    Terminal.print("there is nowhere to go back to.",
+                        15, standardSize, Color.GRAY);
+                    continue;
+                }
+                current = trail.pop();
                 continue;
             }
             if (exit.destination() != null) {
@@ -1089,9 +1267,9 @@ public class Game implements Runnable {
             if (input.length() > MAX_NAME_LENGTH) {
                 Terminal.print("that's too long, keep it to " + MAX_NAME_LENGTH
                     + " characters", 20, standardSize, Color.RED);
-            } else if (input.isEmpty()
-                || input.length() < minimumLength
-                || input.equalsIgnoreCase("eris")) {
+            } else if (input.equalsIgnoreCase("eris")) {
+                Terminal.print("that name is taken. choose another.", 20, standardSize, Color.RED);
+            } else if (input.isEmpty() || input.length() < minimumLength) {
                 Terminal.print("input a valid name", 20, standardSize, Color.RED);
             } else {
                 return input;
@@ -1137,6 +1315,7 @@ public class Game implements Runnable {
         while (running) {
             showSettingValues();
             Terminal.print("change a value with: set <name> <value>", 15, standardSize, Color.WHITE);
+            Terminal.print("type HELP for settings and commands.", 15, standardSize, Color.WHITE);
             Terminal.print("type RESET SAVE to erase your save state.", 15, standardSize, Color.WHITE);
             Terminal.print("type BACK to go to the main menu.", 15, standardSize, Color.RED);
 
@@ -1150,7 +1329,9 @@ public class Game implements Runnable {
                 return;
             }
 
-            if (normalized.equals("reset save") || normalized.equals("reset")) {
+            if (normalized.equals("help")) {
+                showSettingsHelp();
+            } else if (normalized.equals("reset save") || normalized.equals("reset")) {
                 resetSaveState();
             } else if (normalized.startsWith("set ")) {
                 applySetting(input.substring(4).trim());
@@ -1196,6 +1377,17 @@ public class Game implements Runnable {
             + "   (1 - 3, 1 is sharpest and slowest)", 10, standardSize, Color.WHITE);
     }
 
+    /** Lists every setting and the commands that work on this screen. */
+    private void showSettingsHelp() {
+        Terminal.print("settings help:", 20, standardSize, Color.GREEN);
+        showSettingValues();
+        Terminal.print("set <name> <value> - change one value", 15, standardSize, Color.WHITE);
+        Terminal.print("aliases: sfx, music, speed, scale, sound", 15, standardSize, Color.WHITE);
+        Terminal.print("reset save - erase profile and story progress", 15, standardSize, Color.WHITE);
+        Terminal.print("back - save and return to the boot menu", 15, standardSize, Color.WHITE);
+        Terminal.blankLine();
+    }
+
     private void applySetting(String assignment) {
         String[] parts = assignment.split("\\s+", 2);
         if (parts.length < 2) {
@@ -1208,23 +1400,28 @@ public class Game implements Runnable {
 
         try {
             switch (key) {
+                case "sfx":
                 case "sfxvolume":
                     Settings.sfxVolume = clamp01(Float.parseFloat(value));
                     Settings.apply();
                     AudioManager.playRandomSfx(AudioManager.KEYBOARD_CLICKS); // Play a click so the user can gauge the new audio level
                     break; 
+                case "music":
                 case "musicvolume":
                     Settings.musicVolume = clamp01(Float.parseFloat(value));
                     Settings.apply();
                     break;
+                case "speed":
                 case "textspeed":
-                    Settings.textSpeed = Double.parseDouble(value);
+                    Settings.textSpeed = Settings.clampSpeed(Double.parseDouble(value));
                     Settings.apply();
                     break;
+                case "scale":
                 case "textscale":
                     Settings.textScale = Settings.clampScale(Double.parseDouble(value));
                     Settings.apply();
                     break;
+                case "sound":
                 case "typingsounds":
                     Settings.typingSounds = Boolean.parseBoolean(value);
                     Settings.apply();

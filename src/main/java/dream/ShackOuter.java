@@ -16,7 +16,7 @@ final class ShackOuter {
         Interactable.builder("boards")
             .names("boards", "window", "boarded window")
             .look("The window is boarded shut from the inside. The nails are new.")
-            .interact("You knock on the boards. Something knocks back, once, and then stops.")
+            .interact(ShackOuter::knockWindow)
             .refuseTake("The boards are nailed down. You would need a crowbar and a little more strength.")
             .build(),
         Interactable.builder("axe")
@@ -26,14 +26,18 @@ final class ShackOuter {
             .take("You take the axe. The weight of it feels good in your hands.")
             .useOn("hatch")
             .onlyWhile(() -> !SaveState.hatchBroken)
+            .droppableWhen(() -> SaveState.hatchBroken)
+            .hiddenWhen(() -> SaveState.isGone("axe"))
             .build(),
         Interactable.builder("rustyLantern") // lowkey might scrap lol
             .names("rusty lantern", "lantern")
             .look("A rusty lantern, still holding a little oil in the base.")
             .interact("The lantern is cold. The oil inside is still liquid.")
             .take("You take the rusty lantern. It is heavier than it looks.")
-            .useOn("plateValve")
+            .useOn("plateValve", "graveValve", "boardValve")
             .onlyWhile(() -> !SaveState.valvesOiled)
+            .droppableWhen(() -> SaveState.valvesOiled)
+            .hiddenWhen(() -> SaveState.isGone("rustyLantern"))
             .build()
     );
 
@@ -52,8 +56,26 @@ final class ShackOuter {
     private static List<TextSpan> describeArea() {
         String description = "The path ends at a shack that leans like it is trying to lie down. "
             + "Its windows are closed over with fresh boards, and a crooked door hangs open just "
-            + "enough to let the dark out. An axe leans against the wall beside the door, and a rusty "
-            + "lantern hangs from a nail there.";
+            + "enough to let the dark out.";
+        boolean axeHere = !SaveState.isGone("axe");
+        boolean lanternHere = !SaveState.isGone("rustyLantern");
+        if (axeHere && lanternHere) {
+            description += " An axe leans against the wall beside the door, and a rusty lantern hangs "
+                + "from a nail there.";
+        } else if (axeHere) {
+            description += " An axe leans against the wall beside the door.";
+        } else if (lanternHere) {
+            description += " A rusty lantern hangs from a nail beside the door.";
+        }
         return TextSpan.highlighting(description, Scene.NAME, "boards", "door", "axe", "lantern");
+    }
+
+    /** The boards answer once, then fall silent; after the cellar, they stay silent. */
+    private static String knockWindow() {
+        if (SaveState.cellarPuzzleSolved) {
+            return "You knock on the boards. Nothing answers. Whatever was knocking has gone quiet.";
+        }
+        return "You knock on the boards. Something knocks back, once, then twice, then three times, "
+            + "and then stops.";
     }
 }

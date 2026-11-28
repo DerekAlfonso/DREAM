@@ -391,8 +391,8 @@ public final class NamedColors {
         Color avoidedRaw = get(avoidedName);
         List<Color> options = new ArrayList<>();
         for (Color color : BY_KEY.values()) {
-            if (color.getRGB() == avoided.getRGB()
-                    || (avoidedRaw != null && color.getRGB() == avoidedRaw.getRGB())
+            if (tooSimilar(color, avoided)
+                    || (avoidedRaw != null && tooSimilar(color, avoidedRaw))
                     || brightness(color) < 80) {
                 continue;
             }
@@ -407,6 +407,28 @@ public final class NamedColors {
     private static int brightness(Color color) {
         return Math.max(color.getRed(),
             Math.max(color.getGreen(), color.getBlue()));
+    }
+
+    /**
+     * True when two colors sit in the same hue/brightness neighborhood. This
+     * keeps forest green and dark green out when the player's favorite is
+     * green, instead of only avoiding the exact RGB value.
+     */
+    private static boolean tooSimilar(Color a, Color b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        float[] first = Color.RGBtoHSB(a.getRed(), a.getGreen(), a.getBlue(), null);
+        float[] second = Color.RGBtoHSB(b.getRed(), b.getGreen(), b.getBlue(), null);
+        float hueGap = Math.abs(first[0] - second[0]);
+        hueGap = Math.min(hueGap, 1f - hueGap);
+        float brightnessGap = Math.abs(first[2] - second[2]);
+
+        // Near-greys have no meaningful hue; compare them by lightness alone.
+        if (first[1] < 0.12f || second[1] < 0.12f) {
+            return brightnessGap < 0.28f;
+        }
+        return hueGap < 0.10f && brightnessGap < 0.65f;
     }
 
     private static String key(String name) {
